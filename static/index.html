@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - IA & Automatización</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #38bdf8;
+            text-align: center;
+        }
+        .card {
+            background-color: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #94a3b8;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background-color: #0f172a;
+            color: #ffffff;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #0284c7;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #0369a1;
+        }
+        .resultado {
+            background-color: #0f172a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #38bdf8;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Centro de Control IA</h1>
+
+        <div class="card">
+            <h2>⚡ Orquestar Nueva Campaña</h2>
+            <label for="nicho">Nicho de Mercado:</label>
+            <input type="text" id="nicho" value="Finanzas Personales">
+
+            <label for="tema">Tema o Producto:</label>
+            <input type="text" id="tema" value="Cómo organizar tu presupuesto mensual">
+
+            <label for="canal">Canal de YouTube Destino:</label>
+            <select id="canal">
+                <option value="canal_a">Canal A - Curiosidades y Tecnología</option>
+                <option value="canal_b" selected>Canal B - Desarrollo Personal y Finanzas</option>
+            </select>
+
+            <label for="avatar">Perfil de Voz y Avatar:</label>
+            <select id="avatar">
+                <option value="avatar_1">Carlos - Voz Masculina (Dinámico)</option>
+                <option value="avatar_2" selected>Elena - Voz Femenina (Inspirador)</option>
+            </select>
+
+            <button onclick="ejecutarFlujo()">🚀 Generar y Programar Campaña</button>
+        </div>
+
+        <div class="card">
+            <h2>📋 Respuesta del Sistema</h2>
+            <div id="pantalla-respuesta" class="resultado">Presiona el botón para iniciar la automatización...</div>
+        </div>
+    </div>
+
+    <script>
+        async function ejecutarFlujo() {
+            const pantalla = document.getElementById('pantalla-respuesta');
+            pantalla.innerText = "⏳ Procesando orden... Ejecutando agentes de IA...";
+
+            const datos = {
+                nicho: document.getElementById('nicho').value,
+                tema: document.getElementById('tema').value,
+                canal_id: document.getElementById('canal').value,
+                avatar_id: document.getElementById('avatar').value
+            };
+
+            try {
+                const res = await fetch('/orquestador/ejecutar_flujo_completo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+
+                const resultado = await res.json();
+                pantalla.innerText = JSON.stringify(resultado, null, 2);
+            } catch (error) {
+                pantalla.innerText = "❌ Error conectando con el servidor: " + error;
+            }
+        }
+    </script>
+</body>
+</html>
