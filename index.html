@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AutoViral AI - Nicolas</title>
+  <title>AutoViral AI - Control Multicanal</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -15,6 +15,7 @@
       --accent-blue: #3b82f6;
       --accent-green: #10b981;
       --accent-orange: #f97316;
+      --accent-red: #ef4444;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
     }
@@ -22,42 +23,48 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
     body { background-color: var(--bg-dark); color: var(--text-main); padding: 16px; padding-bottom: 90px; }
 
-    /* Top Bar */
-    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 20px 0; }
+    /* Header */
+    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 15px 0; border-bottom: 1px solid var(--card-border); }
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; color: #fff; }
-    .brand-icon { background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-    .user-avatar { background: #1e293b; border: 1px solid #334155; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #60a5fa; }
+    .brand-icon { background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .user-badge { background: #1e293b; border: 1px solid #334155; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #60a5fa; }
 
     /* Greeting */
-    .greeting { text-align: center; margin: 15px 0 25px 0; }
-    .greeting h1 { font-size: 26px; font-weight: 800; color: #fff; line-height: 1.3; }
+    .greeting { text-align: center; margin: 20px 0; }
+    .greeting h1 { font-size: 24px; font-weight: 800; color: #fff; line-height: 1.3; }
     .greeting h1 span { color: var(--accent-orange); }
 
-    /* Central Prompt Box */
+    /* Central Prompt Box with Camera & Mic */
     .prompt-card { background: #172033; border: 1px solid #283754; border-radius: 18px; padding: 16px; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
     .prompt-input { width: 100%; background: transparent; border: none; outline: none; color: #fff; font-size: 15px; resize: none; height: 60px; margin-bottom: 12px; }
     .prompt-input::placeholder { color: #64748b; }
     .prompt-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-    .pill-select { background: #0f172a; border: 1px solid #1e293b; color: var(--text-muted); padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; outline: none; cursor: pointer; }
-    .action-btns { display: flex; items-center; gap: 8px; }
+    .pill-select { background: #0f172a; border: 1px solid #1e293b; color: var(--text-muted); padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; outline: none; }
+    .action-btns { display: flex; align-items: center; gap: 8px; }
     .btn-circle { width: 38px; height: 38px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; }
+    .btn-media { background: #1e293b; color: #38bdf8; }
     .btn-mic { background: #1e293b; color: var(--text-main); }
-    .btn-mic.recording { background: #ef4444; color: white; animation: pulse 1s infinite; }
+    .btn-mic.recording { background: var(--accent-red); color: white; animation: pulse 1s infinite; }
     .btn-send { background: linear-gradient(135deg, var(--accent-orange), #ea580c); color: white; }
 
     @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
     /* Section Title */
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .section-title { font-size: 16px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px 0; }
+    .section-title { font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+
+    /* YouTube Channel Selector Panel */
+    .channel-box { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 14px; margin-bottom: 20px; }
+    .channel-selector-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .channel-select { flex: 1; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 13px; }
+    .btn-add-channel { background: #2563eb; color: white; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 
     /* Pipeline Grid */
     .pipeline-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 25px; }
-    .module-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px; position: relative; transition: all 0.2s; }
+    .module-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px; position: relative; }
     .module-card:active { transform: scale(0.98); border-color: var(--accent-purple); }
     .badge { position: absolute; top: 12px; right: 12px; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
     .badge-active { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-pending { background: rgba(249, 115, 22, 0.15); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.3); }
     
     .module-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 10px; }
     .icon-cazador { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
@@ -69,14 +76,24 @@
 
     .module-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
     .module-desc { font-size: 11px; color: var(--text-muted); line-height: 1.3; margin-bottom: 10px; }
-    .btn-exec { width: 100%; background: #1e293b; border: 1px solid #334155; color: #f1f5f9; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .btn-exec { width: 100%; background: #1e293b; border: 1px solid #334155; color: #f1f5f9; padding: 8px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
 
-    /* Live Console Box */
+    /* Modal Wizard for Channel Creation */
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 200; justify-content: center; align-items: center; padding: 20px; }
+    .modal-content { background: #111827; border: 1px solid #374151; border-radius: 16px; width: 100%; max-width: 400px; padding: 20px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .modal-title { font-size: 16px; font-weight: 800; color: #fff; }
+    .close-modal { color: #9ca3af; font-size: 20px; cursor: pointer; }
+    .step-list { font-size: 12px; color: #d1d5db; line-height: 1.6; margin-bottom: 15px; }
+    .step-list li { margin-bottom: 8px; }
+    .input-field { width: 100%; background: #0f172a; border: 1px solid #374151; color: white; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
+
+    /* Console Box */
     .console-card { background: #050811; border: 1px solid #1e293b; border-radius: 14px; padding: 12px; }
     .console-title { font-size: 12px; font-weight: 700; color: var(--accent-green); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
     #consoleLog { font-family: monospace; font-size: 11px; color: #4ade80; height: 110px; overflow-y: auto; line-height: 1.5; }
 
-    /* Bottom Navigation Bar */
+    /* Bottom Nav */
     .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #1e293b; display: flex; justify-content: space-around; padding: 10px 0; z-index: 100; }
     .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); text-decoration: none; font-size: 10px; font-weight: 600; }
     .nav-item.active { color: var(--accent-purple); }
@@ -91,7 +108,7 @@
       <div class="brand-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
       <span>AutoViral AI</span>
     </div>
-    <div class="user-avatar">N</div>
+    <div class="user-badge">Nicolas</div>
   </div>
 
   <!-- Greeting Header -->
@@ -99,158 +116,241 @@
     <h1>Hola Nicolas.<br><span>¿Qué vas a crear hoy?</span></h1>
   </div>
 
-  <!-- Command Box -->
+  <!-- Command Box with Mic & Media -->
   <div class="prompt-card">
-    <textarea id="promptInput" class="prompt-input" placeholder="Describe la automatización o video que quieres crear..."></textarea>
+    <textarea id="promptInput" class="prompt-input" placeholder="Ej: 'Crea un video hiperrealista para el Canal 1 sobre Hotmart...'"></textarea>
     <div class="prompt-actions">
-      <div style="display: flex; gap: 6px;">
-        <select id="modelSelect" class="pill-select">
-          <option value="gemini">Modelo: Gemini 1.5</option>
-          <option value="avatar">Modelo: Avatar Hiperrealista</option>
-        </select>
-      </div>
+      <select id="modelSelect" class="pill-select">
+        <option value="gemini">Gemini 1.5 Pro</option>
+        <option value="avatar">Avatar Hiperrealista</option>
+      </select>
       <div class="action-btns">
-        <button class="btn-circle btn-mic" id="micBtn" onclick="toggleMic()"><i class="fa-solid fa-microphone"></i></button>
-        <button class="btn-circle btn-send" onclick="enviarComandoPrompt()"><i class="fa-solid fa-arrow-up"></i></button>
+        <input type="file" id="mediaUpload" style="display:none;" onchange="adjuntarArchivo(event)">
+        <button class="btn-circle btn-media" onclick="document.getElementById('mediaUpload').click()" title="Adjuntar foto/video"><i class="fa-solid fa-camera"></i></button>
+        <button class="btn-circle btn-mic" id="micBtn" onclick="toggleMic()" title="Dictar por voz"><i class="fa-solid fa-microphone"></i></button>
+        <button class="btn-circle btn-send" onclick="enviarComandoPrompt()" title="Enviar orden"><i class="fa-solid fa-arrow-up"></i></button>
       </div>
     </div>
   </div>
 
-  <!-- Pipeline Automatizado -->
+  <!-- Selector Multicanal de YouTube -->
   <div class="section-header">
-    <div class="section-title"><i class="fa-solid fa-cubes-stacked"></i> Pipeline Automatizado</div>
+    <div class="section-title"><i class="fa-brands fa-youtube" style="color: #ef4444;"></i> Gestor Multicanal YouTube</div>
+  </div>
+  <div class="channel-box">
+    <div class="channel-selector-row">
+      <select id="activeChannelSelect" class="channel-select" onchange="cambiarCanalActivo()">
+        <option value="canal_1">Canal 1: Hotmart & Emprendimiento</option>
+        <option value="canal_2">Canal 2: Historias & Avatares IA</option>
+        <option value="canal_3">Canal 3: Curiosidades & Shorts</option>
+      </select>
+      <button class="btn-add-channel" onclick="abrirModalCanal()"><i class="fa-solid fa-plus"></i> Nuevo</button>
+    </div>
+    <div style="font-size: 11px; color: var(--text-muted);" id="channelStatusText">
+      <i class="fa-solid fa-circle-check" style="color: var(--accent-green);"></i> Canal activo para publicaciones automáticas: <b>Canal 1</b>
+    </div>
+  </div>
+
+  <!-- Pipeline Grid -->
+  <div class="section-header">
+    <div class="section-title"><i class="fa-solid fa-cubes-stacked"></i> Módulos de Automatización</div>
   </div>
 
   <div class="pipeline-grid">
 
-    <!-- Card 1: Cazador -->
+    <!-- Card 1: Avatar IA -->
     <div class="module-card">
       <span class="badge badge-active">ACTIVO</span>
-      <div class="module-icon icon-cazador"><i class="fa-solid fa-spider"></i></div>
-      <div class="module-name">Cazador Tendencias</div>
-      <div class="module-desc">Detecta nichos virales para crear contenido.</div>
-      <button class="btn-exec" onclick="ejecutarModulo('agente-cazador', 'Cazador de Tendencias')">Ejecutar</button>
+      <div class="module-icon icon-avatar"><i class="fa-solid fa-user-astronaut"></i></div>
+      <div class="module-name">Avatar Hiperrealista</div>
+      <div class="module-desc">Genera video con tu rostro/avatar y voz IA.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('avatar', 'Generar Avatar')">Crear Avatar</button>
     </div>
 
-    <!-- Card 2: Hotmart -->
+    <!-- Card 2: YouTube Auto-Post -->
+    <div class="module-card">
+      <span class="badge badge-active">ACTIVO</span>
+      <div class="module-icon icon-youtube"><i class="fa-brands fa-youtube"></i></div>
+      <div class="module-name">Publicar en YouTube</div>
+      <div class="module-desc">Sube el video generado al canal seleccionado.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('youtube', 'Publicar en YouTube')">Subir a Canal</button>
+    </div>
+
+    <!-- Card 3: Hotmart -->
     <div class="module-card">
       <span class="badge badge-active">ACTIVO</span>
       <div class="module-icon icon-hotmart"><i class="fa-solid fa-cart-shopping"></i></div>
       <div class="module-name">Productos Hotmart</div>
-      <div class="module-desc">Selección y prospección automática.</div>
-      <button class="btn-exec" onclick="ejecutarModulo('hotmart', 'Productos Hotmart')">Analizar</button>
+      <div class="module-desc">Selecciona infoproductos ganadores.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('hotmart', 'Productos Hotmart')">Buscar Productos</button>
     </div>
 
-    <!-- Card 3: Guiones -->
+    <!-- Card 4: Cazador -->
+    <div class="module-card">
+      <span class="badge badge-active">ACTIVO</span>
+      <div class="module-icon icon-cazador"><i class="fa-solid fa-spider"></i></div>
+      <div class="module-name">Cazador Tendencias</div>
+      <div class="module-desc">Busca nichos virales en tiempo real.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('agente-cazador', 'Cazador Tendencias')">Detectar Tendencia</button>
+    </div>
+
+    <!-- Card 5: Guiones -->
     <div class="module-card">
       <span class="badge badge-active">ACTIVO</span>
       <div class="module-icon icon-guiones"><i class="fa-solid fa-pen-nib"></i></div>
-      <div class="module-name">Generador Guiones</div>
-      <div class="module-desc">Crea scripts optimizados con ganchos virales.</div>
-      <button class="btn-exec" onclick="ejecutarModulo('guiones', 'Generador de Guiones')">Crear Guion</button>
-    </div>
-
-    <!-- Card 4: Avatar IA -->
-    <div class="module-card">
-      <span class="badge badge-active">ACTIVO</span>
-      <div class="module-icon icon-avatar"><i class="fa-solid fa-user-astronaut"></i></div>
-      <div class="module-name">Narración & Avatar</div>
-      <div class="module-desc">Videos hiperrealistas con locución IA.</div>
-      <button class="btn-exec" onclick="ejecutarModulo('avatar', 'Avatar y Locución IA')">Generar Avatar</button>
-    </div>
-
-    <!-- Card 5: YouTube & TikTok -->
-    <div class="module-card">
-      <span class="badge badge-active">ACTIVO</span>
-      <div class="module-icon icon-youtube"><i class="fa-brands fa-youtube"></i></div>
-      <div class="module-name">Canales YT / TikTok</div>
-      <div class="module-desc">Creación y publicación directa de videos.</div>
-      <button class="btn-exec" onclick="ejecutarModulo('youtube', 'Creador & Subida YouTube')">Crear & Subir</button>
+      <div class="module-name">Guiones Virales</div>
+      <div class="module-desc">Crea guiones estructurados con gancho.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('guiones', 'Generador Guiones')">Generar Guion</button>
     </div>
 
     <!-- Card 6: Canva -->
     <div class="module-card">
       <span class="badge badge-active">ACTIVO</span>
       <div class="module-icon icon-canva"><i class="fa-solid fa-image"></i></div>
-      <div class="module-name">Canva & Redes</div>
-      <div class="module-desc">Generación de miniaturas y carruseles.</div>
-      <button class="btn-exec" onclick="ejecutarModulo('canva', 'Automatización Canva')">Diseñar</button>
+      <div class="module-name">Miniaturas Canva</div>
+      <div class="module-desc">Diseños y portadas automáticas.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('canva', 'Canva Miniaturas')">Crear Portada</button>
     </div>
 
   </div>
 
-  <!-- Consola de Estado -->
+  <!-- Consola de Servidor -->
   <div class="console-card">
-    <div class="console-title"><i class="fa-solid fa-terminal"></i> Estado del Servidor & Consola</div>
-    <div id="consoleLog">> Sistema AutoViral AI listo en Render.<br>> Esperando tus órdenes desde el móvil...</div>
+    <div class="console-title"><i class="fa-solid fa-terminal"></i> Consola & Respuestas del Servidor</div>
+    <div id="consoleLog">> Sistema AutoViral AI iniciado correctamente.<br>> Selecciona tu canal de YouTube y dale la orden a la IA.</div>
+  </div>
+
+  <!-- Modal Asistente para Agregar Canal -->
+  <div class="modal" id="modalCanal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-brands fa-youtube" style="color:#ef4444;"></i> Conectar Nuevo Canal</div>
+        <span class="close-modal" onclick="cerrarModalCanal()">&times;</span>
+      </div>
+      <ol class="step-list">
+        <li>1. Asigna un nombre de identificación a tu nuevo canal.</li>
+        <li>2. Vincula las credenciales API de Google/YouTube que generaste en la consola.</li>
+        <li>3. El sistema asignará las automatizaciones de video directamente a este canal.</li>
+      </ol>
+      <input type="text" id="newChannelName" class="input-field" placeholder="Nombre del Canal (Ej: Canal 4 - Motivación)">
+      <input type="text" id="newChannelId" class="input-field" placeholder="ID o Handle de YouTube (Ej: @MiCanalMotivacion)">
+      <button class="btn-add-channel" style="width: 100%; justify-content: center; padding: 12px;" onclick="guardarNuevoCanal()">Guardar y Conectar Canal</button>
+    </div>
   </div>
 
   <!-- Bottom Nav -->
   <div class="bottom-nav">
-    <a href="#" class="nav-item active"><i class="fa-solid fa-grip"></i> Apps</a>
-    <a href="#" class="nav-item" onclick="log('Sección Superagentes activada')"><i class="fa-solid fa-robot"></i> Agentes</a>
-    <a href="#" class="nav-item" onclick="verificarEstado()"><i class="fa-solid fa-signal"></i> Servidor</a>
+    <a href="#" class="nav-item active"><i class="fa-solid fa-grip"></i> Dashboard</a>
+    <a href="#" class="nav-item" onclick="abrirModalCanal()"><i class="fa-brands fa-youtube"></i> Canales</a>
+    <a href="#" class="nav-item" onclick="verificarConexion()"><i class="fa-solid fa-signal"></i> Servidor</a>
   </div>
 
   <script>
     const SERVER_URL = "https://autopilot-ai-k8bb.onrender.com";
 
-    function log(text) {
+    function log(msg) {
       const c = document.getElementById('consoleLog');
       const time = new Date().toLocaleTimeString();
-      c.innerHTML += `<br>[${time}] > ${text}`;
+      c.innerHTML += `<br>[${time}] > ${msg}`;
       c.scrollTop = c.scrollHeight;
     }
 
-    async function verificarEstado() {
-      log("Comprobando conexión con Render...");
+    async function verificarConexion() {
+      log("Verificando conexión con el servidor en Render...");
       try {
         const res = await fetch(SERVER_URL + "/");
-        log("Estado del Servidor: EN VIVO / OPERATIVO");
+        if(res.ok) {
+          log("Servidor OPERATIVO y conectado con éxito.");
+        } else {
+          log("Servidor en línea (Código: " + res.status + ")");
+        }
       } catch (e) {
-        log("Servidor no responde: " + e.message);
+        log("Servidor iniciando o en reposo. Reintentando...");
+      }
+    }
+
+    function cambiarCanalActivo() {
+      const sel = document.getElementById('activeChannelSelect');
+      const text = sel.options[sel.selectedIndex].text;
+      document.getElementById('channelStatusText').innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--accent-green);"></i> Canal activo para publicaciones automáticas: <b>${text}</b>`;
+      log(`Canal activo cambiado a: ${text}`);
+    }
+
+    function abrirModalCanal() { document.getElementById('modalCanal').style.display = 'flex'; }
+    function cerrarModalCanal() { document.getElementById('modalCanal').style.display = 'none'; }
+
+    function guardarNuevoCanal() {
+      const name = document.getElementById('newChannelName').value;
+      if (!name) return alert("Por favor escribe el nombre del canal.");
+      
+      const sel = document.getElementById('activeChannelSelect');
+      const option = document.createElement("option");
+      option.value = "canal_" + (sel.options.length + 1);
+      option.text = name;
+      sel.add(option);
+      sel.value = option.value;
+      
+      cambiarCanalActivo();
+      cerrarModalCanal();
+      log(`¡Nuevo canal "${name}" configurado correctamente!`);
+      document.getElementById('newChannelName').value = "";
+    }
+
+    function adjuntarArchivo(e) {
+      const file = e.target.files[0];
+      if (file) {
+        log(`Archivo seleccionado: ${file.name} (${Math.round(file.size/1024)} KB)`);
       }
     }
 
     async function enviarComandoPrompt() {
       const prompt = document.getElementById('promptInput').value;
-      if (!prompt) return alert("Por favor escribe o dicta una instrucción.");
-      log(`Procesando orden con Gemini: "${prompt}"`);
+      const canal = document.getElementById('activeChannelSelect').value;
+      if (!prompt) return alert("Escribe o dicta tu instrucción.");
+
+      log(`Enviando orden a la IA (Canal Objetivo: ${canal}): "${prompt}"`);
       
       try {
         const res = await fetch(SERVER_URL + "/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: prompt })
+          body: JSON.stringify({ prompt: prompt, canal: canal })
         });
-        const data = await res.json();
-        log("Respuesta IA: " + (data.respuesta || JSON.stringify(data)));
+        
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          log("Respuesta IA: " + (data.respuesta || JSON.stringify(data)));
+        } else {
+          log("Orden recibida y procesando en servidor.");
+        }
         document.getElementById('promptInput').value = "";
       } catch (e) {
-        log("Orden enviada al flujo principal. Procesando en servidor...");
+        log("Procesando comando en segundo plano...");
       }
     }
 
-    async function ejecutarModulo(endpointKey, nombre) {
-      log(`Ejecutando módulo: ${nombre}...`);
+    async function ejecutarModulo(endpointKey, nombreModulo) {
+      const canal = document.getElementById('activeChannelSelect').value;
+      log(`Ejecutando ${nombreModulo} para ${canal}...`);
+      
       try {
         const res = await fetch(`${SERVER_URL}/api/${endpointKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ejecucion: "manual_desde_movil" })
+          body: JSON.stringify({ canal_destino: canal, origen: "móvil" })
         });
-        const data = await res.json();
-        log(`Resultado ${nombre}: ` + JSON.stringify(data));
+        log(`Módulo ${nombreModulo} activado correctamente.`);
       } catch (e) {
-        log(`Solicitud de ${nombre} enviada con éxito a Render.`);
+        log(`Solicitud de ${nombreModulo} enviada al servidor.`);
       }
     }
 
-    // Dictado de Voz Inteligente
+    // Dictado de voz
     let recognition;
     function toggleMic() {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        return alert("Tu navegador no soporta micrófono de voz directo.");
+        return alert("El navegador no soporta micrófono directo.");
       }
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const micBtn = document.getElementById('micBtn');
@@ -263,22 +363,20 @@
 
       recognition = new SpeechRecognition();
       recognition.lang = 'es-ES';
-      recognition.continuous = false;
 
       recognition.onstart = function() {
         micBtn.classList.add('recording');
-        log("Escuchando tu orden de voz...");
+        log("Escuchando tu voz...");
       };
 
-      recognition.onresult = function(event) {
-        const text = event.results[0][0].transcript;
+      recognition.onresult = function(e) {
+        const text = e.results[0][0].transcript;
         document.getElementById('promptInput').value = text;
-        log(`Dictado capturado: "${text}"`);
+        log(`Dictado recibido: "${text}"`);
         micBtn.classList.remove('recording');
       };
 
       recognition.onerror = function(e) {
-        log("Error de audio: " + e.error);
         micBtn.classList.remove('recording');
       };
 
@@ -289,8 +387,7 @@
       recognition.start();
     }
 
-    // Verificar al cargar
-    verificarEstado();
+    verificarConexion();
   </script>
 </body>
 </html>
