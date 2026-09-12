@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autopilot AI Mobile</title>
+  <style>
+    body { font-family: sans-serif; background: #111827; color: #f3f4f6; text-align: center; padding: 20px; margin: 0; }
+    h2 { color: #38bdf8; }
+    .card { background: #1f2937; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .btn-green { background: #22c55e; color: #000; }
+    .btn-red { background: #ef4444; color: #fff; }
+    .btn-blue { background: #38bdf8; color: #0f172a; }
+    input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #374151; background: #0f172a; color: #fff; box-sizing: border-box; font-size: 15px; }
+    #console { background: #000; color: #4ade80; font-family: monospace; padding: 12px; border-radius: 8px; text-align: left; height: 140px; overflow-y: auto; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+  <h2>🤖 Autopilot AI</h2>
+
+  <div class="card">
+    <button class="btn-blue" onclick="probarServidor()">📡 Verificar Conexión</button>
+  </div>
+
+  <div class="card">
+    <button class="btn-green" onclick="enviarAccion('iniciar')">▶️ Iniciar Autopilot</button>
+    <button class="btn-red" onclick="enviarAccion('detener')">⏹️ Detener Autopilot</button>
+  </div>
+
+  <div class="card">
+    <input type="text" id="promptInput" placeholder="Escribe tu orden a Gemini...">
+    <button class="btn-blue" onclick="enviarComando()">🚀 Enviar a Gemini</button>
+  </div>
+
+  <div class="card">
+    <div id="console">Esperando órdenes...</div>
+  </div>
+
+  <script>
+    const SERVER_URL = "https://autopilot-ai-k8bb.onrender.com";
+
+    function log(texto) {
+      const c = document.getElementById('console');
+      c.innerHTML += "<br>> " + texto;
+      c.scrollTop = c.scrollHeight;
+    }
+
+    async function probarServidor() {
+      log("Conectando a Render...");
+      try {
+        const res = await fetch(SERVER_URL + "/");
+        const data = await res.text();
+        log("Servidor responde: " + data);
+      } catch (e) {
+        log("Error de conexión: " + e.message);
+      }
+    }
+
+    async function enviarAccion(accion) {
+      log("Enviando orden: " + accion);
+      try {
+        const res = await fetch(SERVER_URL + "/" + accion, { method: "POST" });
+        const data = await res.json();
+        log("Respuesta: " + JSON.stringify(data));
+      } catch (e) {
+        log("Error: " + e.message);
+      }
+    }
+
+    async function enviarComando() {
+      const prompt = document.getElementById('promptInput').value;
+      if (!prompt) return alert("Escribe un comando primero");
+      log("Enviando a Gemini: " + prompt);
+      try {
+        const res = await fetch(SERVER_URL + "/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: prompt })
+        });
+        const data = await res.json();
+        log("Gemini: " + (data.respuesta || JSON.stringify(data)));
+      } catch (e) {
+        log("Error: " + e.message);
+      }
+    }
+  </script>
+</body>
+</html>
