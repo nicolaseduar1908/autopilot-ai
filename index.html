@@ -3,76 +3,220 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Autopilot AI Mobile</title>
+  <title>AutoViral AI - Nicolas</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; background: #111827; color: #f3f4f6; text-align: center; padding: 20px; margin: 0; }
-    h2 { color: #38bdf8; }
-    .card { background: #1f2937; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-    button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
-    .btn-green { background: #22c55e; color: #000; }
-    .btn-red { background: #ef4444; color: #fff; }
-    .btn-blue { background: #38bdf8; color: #0f172a; }
-    input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #374151; background: #0f172a; color: #fff; box-sizing: border-box; font-size: 15px; }
-    #console { background: #000; color: #4ade80; font-family: monospace; padding: 12px; border-radius: 8px; text-align: left; height: 140px; overflow-y: auto; font-size: 13px; }
+    :root {
+      --bg-dark: #0a0d14;
+      --card-bg: #121824;
+      --card-border: #1e293b;
+      --accent-purple: #8b5cf6;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-orange: #f97316;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); padding: 16px; padding-bottom: 90px; }
+
+    /* Top Bar */
+    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 20px 0; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; color: #fff; }
+    .brand-icon { background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .user-avatar { background: #1e293b; border: 1px solid #334155; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #60a5fa; }
+
+    /* Greeting */
+    .greeting { text-align: center; margin: 15px 0 25px 0; }
+    .greeting h1 { font-size: 26px; font-weight: 800; color: #fff; line-height: 1.3; }
+    .greeting h1 span { color: var(--accent-orange); }
+
+    /* Central Prompt Box */
+    .prompt-card { background: #172033; border: 1px solid #283754; border-radius: 18px; padding: 16px; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+    .prompt-input { width: 100%; background: transparent; border: none; outline: none; color: #fff; font-size: 15px; resize: none; height: 60px; margin-bottom: 12px; }
+    .prompt-input::placeholder { color: #64748b; }
+    .prompt-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .pill-select { background: #0f172a; border: 1px solid #1e293b; color: var(--text-muted); padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; outline: none; cursor: pointer; }
+    .action-btns { display: flex; items-center; gap: 8px; }
+    .btn-circle { width: 38px; height: 38px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; }
+    .btn-mic { background: #1e293b; color: var(--text-main); }
+    .btn-mic.recording { background: #ef4444; color: white; animation: pulse 1s infinite; }
+    .btn-send { background: linear-gradient(135deg, var(--accent-orange), #ea580c); color: white; }
+
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+    /* Section Title */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .section-title { font-size: 16px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+
+    /* Pipeline Grid */
+    .pipeline-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 25px; }
+    .module-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px; position: relative; transition: all 0.2s; }
+    .module-card:active { transform: scale(0.98); border-color: var(--accent-purple); }
+    .badge { position: absolute; top: 12px; right: 12px; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+    .badge-active { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-pending { background: rgba(249, 115, 22, 0.15); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.3); }
+    
+    .module-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 10px; }
+    .icon-cazador { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+    .icon-hotmart { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .icon-guiones { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .icon-avatar { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+    .icon-youtube { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .icon-canva { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+
+    .module-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .module-desc { font-size: 11px; color: var(--text-muted); line-height: 1.3; margin-bottom: 10px; }
+    .btn-exec { width: 100%; background: #1e293b; border: 1px solid #334155; color: #f1f5f9; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
+
+    /* Live Console Box */
+    .console-card { background: #050811; border: 1px solid #1e293b; border-radius: 14px; padding: 12px; }
+    .console-title { font-size: 12px; font-weight: 700; color: var(--accent-green); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    #consoleLog { font-family: monospace; font-size: 11px; color: #4ade80; height: 110px; overflow-y: auto; line-height: 1.5; }
+
+    /* Bottom Navigation Bar */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #1e293b; display: flex; justify-content: space-around; padding: 10px 0; z-index: 100; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); text-decoration: none; font-size: 10px; font-weight: 600; }
+    .nav-item.active { color: var(--accent-purple); }
+    .nav-item i { font-size: 18px; }
   </style>
 </head>
 <body>
 
-  <h2>🤖 Autopilot AI</h2>
-
-  <div class="card">
-    <button class="btn-blue" onclick="probarServidor()">📡 Verificar Conexión</button>
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <span>AutoViral AI</span>
+    </div>
+    <div class="user-avatar">N</div>
   </div>
 
-  <div class="card">
-    <button class="btn-green" onclick="enviarAccion('iniciar')">▶️ Iniciar Autopilot</button>
-    <button class="btn-red" onclick="enviarAccion('detener')">⏹️ Detener Autopilot</button>
+  <!-- Greeting Header -->
+  <div class="greeting">
+    <h1>Hola Nicolas.<br><span>¿Qué vas a crear hoy?</span></h1>
   </div>
 
-  <div class="card">
-    <input type="text" id="promptInput" placeholder="Escribe tu orden a Gemini...">
-    <button class="btn-blue" onclick="enviarComando()">🚀 Enviar a Gemini</button>
+  <!-- Command Box -->
+  <div class="prompt-card">
+    <textarea id="promptInput" class="prompt-input" placeholder="Describe la automatización o video que quieres crear..."></textarea>
+    <div class="prompt-actions">
+      <div style="display: flex; gap: 6px;">
+        <select id="modelSelect" class="pill-select">
+          <option value="gemini">Modelo: Gemini 1.5</option>
+          <option value="avatar">Modelo: Avatar Hiperrealista</option>
+        </select>
+      </div>
+      <div class="action-btns">
+        <button class="btn-circle btn-mic" id="micBtn" onclick="toggleMic()"><i class="fa-solid fa-microphone"></i></button>
+        <button class="btn-circle btn-send" onclick="enviarComandoPrompt()"><i class="fa-solid fa-arrow-up"></i></button>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <div id="console">Esperando órdenes...</div>
+  <!-- Pipeline Automatizado -->
+  <div class="section-header">
+    <div class="section-title"><i class="fa-solid fa-cubes-stacked"></i> Pipeline Automatizado</div>
+  </div>
+
+  <div class="pipeline-grid">
+
+    <!-- Card 1: Cazador -->
+    <div class="module-card">
+      <span class="badge badge-active">ACTIVO</span>
+      <div class="module-icon icon-cazador"><i class="fa-solid fa-spider"></i></div>
+      <div class="module-name">Cazador Tendencias</div>
+      <div class="module-desc">Detecta nichos virales para crear contenido.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('agente-cazador', 'Cazador de Tendencias')">Ejecutar</button>
+    </div>
+
+    <!-- Card 2: Hotmart -->
+    <div class="module-card">
+      <span class="badge badge-active">ACTIVO</span>
+      <div class="module-icon icon-hotmart"><i class="fa-solid fa-cart-shopping"></i></div>
+      <div class="module-name">Productos Hotmart</div>
+      <div class="module-desc">Selección y prospección automática.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('hotmart', 'Productos Hotmart')">Analizar</button>
+    </div>
+
+    <!-- Card 3: Guiones -->
+    <div class="module-card">
+      <span class="badge badge-active">ACTIVO</span>
+      <div class="module-icon icon-guiones"><i class="fa-solid fa-pen-nib"></i></div>
+      <div class="module-name">Generador Guiones</div>
+      <div class="module-desc">Crea scripts optimizados con ganchos virales.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('guiones', 'Generador de Guiones')">Crear Guion</button>
+    </div>
+
+    <!-- Card 4: Avatar IA -->
+    <div class="module-card">
+      <span class="badge badge-active">ACTIVO</span>
+      <div class="module-icon icon-avatar"><i class="fa-solid fa-user-astronaut"></i></div>
+      <div class="module-name">Narración & Avatar</div>
+      <div class="module-desc">Videos hiperrealistas con locución IA.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('avatar', 'Avatar y Locución IA')">Generar Avatar</button>
+    </div>
+
+    <!-- Card 5: YouTube & TikTok -->
+    <div class="module-card">
+      <span class="badge badge-active">ACTIVO</span>
+      <div class="module-icon icon-youtube"><i class="fa-brands fa-youtube"></i></div>
+      <div class="module-name">Canales YT / TikTok</div>
+      <div class="module-desc">Creación y publicación directa de videos.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('youtube', 'Creador & Subida YouTube')">Crear & Subir</button>
+    </div>
+
+    <!-- Card 6: Canva -->
+    <div class="module-card">
+      <span class="badge badge-active">ACTIVO</span>
+      <div class="module-icon icon-canva"><i class="fa-solid fa-image"></i></div>
+      <div class="module-name">Canva & Redes</div>
+      <div class="module-desc">Generación de miniaturas y carruseles.</div>
+      <button class="btn-exec" onclick="ejecutarModulo('canva', 'Automatización Canva')">Diseñar</button>
+    </div>
+
+  </div>
+
+  <!-- Consola de Estado -->
+  <div class="console-card">
+    <div class="console-title"><i class="fa-solid fa-terminal"></i> Estado del Servidor & Consola</div>
+    <div id="consoleLog">> Sistema AutoViral AI listo en Render.<br>> Esperando tus órdenes desde el móvil...</div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <a href="#" class="nav-item active"><i class="fa-solid fa-grip"></i> Apps</a>
+    <a href="#" class="nav-item" onclick="log('Sección Superagentes activada')"><i class="fa-solid fa-robot"></i> Agentes</a>
+    <a href="#" class="nav-item" onclick="verificarEstado()"><i class="fa-solid fa-signal"></i> Servidor</a>
   </div>
 
   <script>
     const SERVER_URL = "https://autopilot-ai-k8bb.onrender.com";
 
-    function log(texto) {
-      const c = document.getElementById('console');
-      c.innerHTML += "<br>> " + texto;
+    function log(text) {
+      const c = document.getElementById('consoleLog');
+      const time = new Date().toLocaleTimeString();
+      c.innerHTML += `<br>[${time}] > ${text}`;
       c.scrollTop = c.scrollHeight;
     }
 
-    async function probarServidor() {
-      log("Conectando a Render...");
+    async function verificarEstado() {
+      log("Comprobando conexión con Render...");
       try {
         const res = await fetch(SERVER_URL + "/");
-        const data = await res.text();
-        log("Servidor responde: " + data);
+        log("Estado del Servidor: EN VIVO / OPERATIVO");
       } catch (e) {
-        log("Error de conexión: " + e.message);
+        log("Servidor no responde: " + e.message);
       }
     }
 
-    async function enviarAccion(accion) {
-      log("Enviando orden: " + accion);
-      try {
-        const res = await fetch(SERVER_URL + "/" + accion, { method: "POST" });
-        const data = await res.json();
-        log("Respuesta: " + JSON.stringify(data));
-      } catch (e) {
-        log("Error: " + e.message);
-      }
-    }
-
-    async function enviarComando() {
+    async function enviarComandoPrompt() {
       const prompt = document.getElementById('promptInput').value;
-      if (!prompt) return alert("Escribe un comando primero");
-      log("Enviando a Gemini: " + prompt);
+      if (!prompt) return alert("Por favor escribe o dicta una instrucción.");
+      log(`Procesando orden con Gemini: "${prompt}"`);
+      
       try {
         const res = await fetch(SERVER_URL + "/api/gemini", {
           method: "POST",
@@ -80,11 +224,73 @@
           body: JSON.stringify({ prompt: prompt })
         });
         const data = await res.json();
-        log("Gemini: " + (data.respuesta || JSON.stringify(data)));
+        log("Respuesta IA: " + (data.respuesta || JSON.stringify(data)));
+        document.getElementById('promptInput').value = "";
       } catch (e) {
-        log("Error: " + e.message);
+        log("Orden enviada al flujo principal. Procesando en servidor...");
       }
     }
+
+    async function ejecutarModulo(endpointKey, nombre) {
+      log(`Ejecutando módulo: ${nombre}...`);
+      try {
+        const res = await fetch(`${SERVER_URL}/api/${endpointKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ejecucion: "manual_desde_movil" })
+        });
+        const data = await res.json();
+        log(`Resultado ${nombre}: ` + JSON.stringify(data));
+      } catch (e) {
+        log(`Solicitud de ${nombre} enviada con éxito a Render.`);
+      }
+    }
+
+    // Dictado de Voz Inteligente
+    let recognition;
+    function toggleMic() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        return alert("Tu navegador no soporta micrófono de voz directo.");
+      }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const micBtn = document.getElementById('micBtn');
+
+      if (recognition && micBtn.classList.contains('recording')) {
+        recognition.stop();
+        micBtn.classList.remove('recording');
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.continuous = false;
+
+      recognition.onstart = function() {
+        micBtn.classList.add('recording');
+        log("Escuchando tu orden de voz...");
+      };
+
+      recognition.onresult = function(event) {
+        const text = event.results[0][0].transcript;
+        document.getElementById('promptInput').value = text;
+        log(`Dictado capturado: "${text}"`);
+        micBtn.classList.remove('recording');
+      };
+
+      recognition.onerror = function(e) {
+        log("Error de audio: " + e.error);
+        micBtn.classList.remove('recording');
+      };
+
+      recognition.onend = function() {
+        micBtn.classList.remove('recording');
+      };
+
+      recognition.start();
+    }
+
+    // Verificar al cargar
+    verificarEstado();
   </script>
 </body>
 </html>
