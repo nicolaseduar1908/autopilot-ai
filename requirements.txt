@@ -4,4 +4,4 @@ google-generativeai
 elevenlabs
 supabase
 requests
-gunicorn
+gunicornpython-dotenv
