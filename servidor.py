@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
 
-# Importación de la librería oficial de ElevenLabs
+# Importación defensiva de la librería oficial de ElevenLabs
 try:
     from elevenlabs.client import ElevenLabs
 except ImportError:
@@ -101,7 +101,7 @@ class CreadorVideoIA:
             return self.generar_video_animado(guion)
 
 # =========================================================
-# IMPORTACIÓN DE MÓDULOS DEL PROYECTO (DECONSTRUCTIVO/DEFENSIVO)
+# IMPORTACIÓN DE MÓDULOS DEL PROYECTO (DEFENSIVO)
 # =========================================================
 try:
     from agente_cazador import AgenteCazadorTendencias
@@ -196,13 +196,9 @@ if ELEVENLABS_API_KEY and ElevenLabs:
         print(f"⚠️ [ELEVENLABS] Error al inicializar: {e}")
 
 # ---------------------------------------------------------
-# CONFIGURACIÓN DE YOUTUBE DATA API V3
+# CONFIGURACIÓN DE YOUTUBE Y SUPABASE
 # ---------------------------------------------------------
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-# ---------------------------------------------------------
-# CONFIGURACIÓN Y CONEXIÓN A SUPABASE
-# ---------------------------------------------------------
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -224,6 +220,30 @@ def inicio():
     if os.path.exists(os.path.join(app.static_folder, 'index.html')):
         return send_from_directory('static', 'index.html')
     return jsonify({"mensaje": "Servidor Flask activo", "status": "OK"}), 200
+
+# ---------------------------------------------------------
+# RUTA / GENERAR-VIDEO (CONECTADA DIRECTO CON FLUTTERFLOW)
+# ---------------------------------------------------------
+@app.route('/generar-video', methods=['POST'])
+@app.route('/generar-video/', methods=['POST'])
+def generar_video_flutterflow():
+    try:
+        datos = request.get_json() or {}
+        prompt = datos.get("prompt", "") or datos.get("comando", "") or "Video de prueba automatizado"
+        canal = datos.get("canal", "YouTube")
+        preferencia = datos.get("preferencia", "animado")
+        
+        creador = CreadorVideoIA()
+        resultado = creador.procesar_campana_por_canal(canal, preferencia, prompt, "Producto General")
+
+        return jsonify({
+            "status": "success",
+            "mensaje": "Solicitud de video recibida correctamente",
+            "prompt": prompt,
+            "resultado": resultado
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
 # ---------------------------------------------------------
 # PRUEBA RÁPIDA HEYGEN
@@ -346,14 +366,23 @@ def generar_audio_elevenlabs():
         if not texto:
             return jsonify({'status': 'error', 'mensaje': 'El texto es obligatorio'}), 400
 
-        audio_stream = elevenlabs_client.generate(
-            text=texto,
-            voice="Adam",
-            model="eleven_multilingual_v2"
-        )
+        # Compatibilidad con la librería ElevenLabs
+        try:
+            audio_stream = elevenlabs_client.text_to_speech.convert(
+                voice_id="pNInz6obpgDQGcFmaJgB",
+                text=texto,
+                model_id="eleven_multilingual_v2"
+            )
+        except AttributeError:
+            audio_stream = elevenlabs_client.generate(
+                text=texto,
+                voice="Adam",
+                model="eleven_multilingual_v2"
+            )
 
-        ruta_salida = os.path.join(app.static_folder, nombre_archivo)
-        os.makedirs(app.static_folder, exist_ok=True)
+        folder = app.static_folder or "static"
+        os.makedirs(folder, exist_ok=True)
+        ruta_salida = os.path.join(folder, nombre_archivo)
         
         with open(ruta_salida, "wb") as f:
             if isinstance(audio_stream, bytes):
@@ -364,7 +393,7 @@ def generar_audio_elevenlabs():
 
         return jsonify({
             'status': 'éxito',
-            'mensaje': 'Audio generado con éxito',
+            'mensaje': 'Audio generado con éxito con ElevenLabs',
             'archivo_url': f"/{nombre_archivo}"
         }), 200
     except Exception as e:
@@ -395,7 +424,7 @@ def generar_grafico_canva():
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
 # ---------------------------------------------------------
-# RUTAS ADICIONALES DE AUTOMATIZACIÓN Y SISTEMA DE ARCHIVOS
+# RUTAS ADICIONALES DE AUTOMATIZACIÓN
 # ---------------------------------------------------------
 @app.route('/crear_proyecto', methods=['POST'])
 def crear_proyecto():
@@ -448,7 +477,7 @@ def abrir_carpeta():
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (RESPUESTAS INTELIGENTES Y PROPORCIONALES)
+# ENDPOINT PRINCIPAL (COMANDO GENERAL Y GEMINI)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST'])
 def ejecutar_comando():
@@ -457,28 +486,27 @@ def ejecutar_comando():
         comando_texto = datos.get('comando', '').strip()
         comando_lower = comando_texto.lower()
 
-        # 1. ACCIONES DEL SISTEMA OPERATIVO
-        if any(w in comando_lower for w in ["bloc de notas", "notepad"]):
-            subprocess.Popen(["notepad.exe"])
-            return jsonify({'respuesta': "Abriendo el Bloc de Notas..."}), 200
+        # 1. ACCIONES LOCALES (Solo en Windows local)
+        if os.name == 'nt':
+            if any(w in comando_lower for w in ["bloc de notas", "notepad"]):
+                subprocess.Popen(["notepad.exe"])
+                return jsonify({'respuesta': "Abriendo el Bloc de Notas..."}), 200
 
-        elif any(w in comando_lower for w in ["calculadora", "calc"]):
-            subprocess.Popen(["calc.exe"])
-            return jsonify({'respuesta': "Abriendo la calculadora..."}), 200
+            elif any(w in comando_lower for w in ["calculadora", "calc"]):
+                subprocess.Popen(["calc.exe"])
+                return jsonify({'respuesta': "Abriendo la calculadora..."}), 200
 
-        elif any(w in comando_lower for w in ["chrome", "navegador", "internet"]):
-            subprocess.Popen(["cmd", "/c", "start", "chrome"])
-            return jsonify({'respuesta': "Abriendo Google Chrome..."}), 200
+            elif any(w in comando_lower for w in ["chrome", "navegador", "internet"]):
+                subprocess.Popen(["cmd", "/c", "start", "chrome"])
+                return jsonify({'respuesta': "Abriendo Google Chrome..."}), 200
 
-        elif any(w in comando_lower for w in ["abrir carpeta", "explorador"]):
-            ruta_escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
-            if hasattr(os, 'startfile'):
-                os.startfile(ruta_escritorio)
-            else:
-                subprocess.Popen(['xdg-open', ruta_escritorio])
-            return jsonify({'respuesta': "Abriendo el explorador de archivos..."}), 200
+            elif any(w in comando_lower for w in ["abrir carpeta", "explorador"]):
+                ruta_escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
+                if hasattr(os, 'startfile'):
+                    os.startfile(ruta_escritorio)
+                return jsonify({'respuesta': "Abriendo el explorador de archivos..."}), 200
 
-        # 2. PROMPT DE INSTRUCCIÓN ADAPTATIVA PARA GEMINI
+        # 2. PROMPT PARA GEMINI IA
         if GEMINI_API_KEY:
             prompt_sistema = (
                 "Eres un asistente de IA útil, directo y conversacional. "
@@ -490,7 +518,7 @@ def ejecutar_comando():
                 f"Consulta recibida: {comando_texto}"
             )
 
-            modelos_compatibles = ['gemini-2.5-flash', 'gemini-1.5-flash']
+            modelos_compatibles = ['gemini-2.0-flash', 'gemini-1.5-flash']
             
             for nombre_modelo in modelos_compatibles:
                 try:
