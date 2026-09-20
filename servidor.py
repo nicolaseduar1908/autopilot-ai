@@ -224,9 +224,11 @@ def inicio():
 # ---------------------------------------------------------
 # RUTA / GENERAR-VIDEO (CONECTADA DIRECTO CON FLUTTERFLOW)
 # ---------------------------------------------------------
-@app.route('/generar-video', methods=['POST'])
-@app.route('/generar-video/', methods=['POST'])
+@app.route('/generar-video', methods=['POST', 'GET'])
+@app.route('/generar-video/', methods=['POST', 'GET'])
 def generar_video_flutterflow():
+    if request.method == 'GET':
+        return jsonify({"mensaje": "Endpoint /generar-video activo. Usa POST para enviar datos.", "status": "OK"}), 200
     try:
         datos = request.get_json() or {}
         prompt = datos.get("prompt", "") or datos.get("comando", "") or "Video de prueba automatizado"
@@ -366,7 +368,6 @@ def generar_audio_elevenlabs():
         if not texto:
             return jsonify({'status': 'error', 'mensaje': 'El texto es obligatorio'}), 400
 
-        # Compatibilidad con la librería ElevenLabs
         try:
             audio_stream = elevenlabs_client.text_to_speech.convert(
                 voice_id="pNInz6obpgDQGcFmaJgB",
@@ -424,7 +425,7 @@ def generar_grafico_canva():
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
 # ---------------------------------------------------------
-# RUTAS ADICIONALES DE AUTOMATIZACIÓN
+# RUTAS ADICIONALES DE AUTOMATIZACIÓN (PROTEGIDAS PARA NUBE)
 # ---------------------------------------------------------
 @app.route('/crear_proyecto', methods=['POST'])
 def crear_proyecto():
@@ -433,17 +434,20 @@ def crear_proyecto():
         nombre_proyecto = datos.get("nombre", "nuevo_proyecto")
         
         ruta_base = os.path.join(os.path.expanduser("~"), "Desktop", nombre_proyecto)
-        os.makedirs(ruta_base, exist_ok=True)
-        os.makedirs(os.path.join(ruta_base, "audios"), exist_ok=True)
-        os.makedirs(os.path.join(ruta_base, "videos"), exist_ok=True)
-        os.makedirs(os.path.join(ruta_base, "guiones"), exist_ok=True)
+        try:
+            os.makedirs(ruta_base, exist_ok=True)
+            os.makedirs(os.path.join(ruta_base, "audios"), exist_ok=True)
+            os.makedirs(os.path.join(ruta_base, "videos"), exist_ok=True)
+            os.makedirs(os.path.join(ruta_base, "guiones"), exist_ok=True)
+        except Exception as e_dir:
+            print(f"[-] Nota carpetas locales: {e_dir}")
         
         if supabase:
             try:
                 supabase.table('project_memory').upsert({
                     "project_name": nombre_proyecto,
                     "current_step": "Proyecto Creado",
-                    "summary": f"Estructura de carpetas creada en {ruta_base}",
+                    "summary": f"Estructura registrada para {nombre_proyecto}",
                     "updated_at": datetime.now().isoformat()
                 }).execute()
             except Exception as e:
@@ -451,7 +455,7 @@ def crear_proyecto():
 
         return jsonify({
             'status': 'éxito',
-            'mensaje': f'Proyecto {nombre_proyecto} creado correctamente',
+            'mensaje': f'Proyecto {nombre_proyecto} registrado correctamente',
             'ruta': ruta_base
         }), 200
     except Exception as e:
@@ -466,11 +470,14 @@ def abrir_carpeta():
             ruta = os.path.expanduser("~")
             
         if os.path.exists(ruta):
-            if hasattr(os, 'startfile'):
-                os.startfile(ruta)
-            else:
-                subprocess.Popen(['xdg-open', ruta])
-            return jsonify({'status': 'éxito', 'mensaje': f'Carpeta abierta: {ruta}'}), 200
+            try:
+                if hasattr(os, 'startfile'):
+                    os.startfile(ruta)
+                else:
+                    subprocess.Popen(['xdg-open', ruta])
+            except Exception as e_open:
+                print(f"[-] Nota apertura carpeta: {e_open}")
+            return jsonify({'status': 'éxito', 'mensaje': f'Ruta procesada: {ruta}'}), 200
         else:
             return jsonify({'status': 'error', 'mensaje': 'La ruta especificada no existe'}), 404
     except Exception as e:
@@ -486,25 +493,28 @@ def ejecutar_comando():
         comando_texto = datos.get('comando', '').strip()
         comando_lower = comando_texto.lower()
 
-        # 1. ACCIONES LOCALES (Solo en Windows local)
+        # 1. ACCIONES LOCALES (Solo si está ejecutándose localmente en Windows)
         if os.name == 'nt':
-            if any(w in comando_lower for w in ["bloc de notas", "notepad"]):
-                subprocess.Popen(["notepad.exe"])
-                return jsonify({'respuesta': "Abriendo el Bloc de Notas..."}), 200
+            try:
+                if any(w in comando_lower for w in ["bloc de notas", "notepad"]):
+                    subprocess.Popen(["notepad.exe"])
+                    return jsonify({'respuesta': "Abriendo el Bloc de Notas..."}), 200
 
-            elif any(w in comando_lower for w in ["calculadora", "calc"]):
-                subprocess.Popen(["calc.exe"])
-                return jsonify({'respuesta': "Abriendo la calculadora..."}), 200
+                elif any(w in comando_lower for w in ["calculadora", "calc"]):
+                    subprocess.Popen(["calc.exe"])
+                    return jsonify({'respuesta': "Abriendo la calculadora..."}), 200
 
-            elif any(w in comando_lower for w in ["chrome", "navegador", "internet"]):
-                subprocess.Popen(["cmd", "/c", "start", "chrome"])
-                return jsonify({'respuesta': "Abriendo Google Chrome..."}), 200
+                elif any(w in comando_lower for w in ["chrome", "navegador", "internet"]):
+                    subprocess.Popen(["cmd", "/c", "start", "chrome"])
+                    return jsonify({'respuesta': "Abriendo Google Chrome..."}), 200
 
-            elif any(w in comando_lower for w in ["abrir carpeta", "explorador"]):
-                ruta_escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
-                if hasattr(os, 'startfile'):
-                    os.startfile(ruta_escritorio)
-                return jsonify({'respuesta': "Abriendo el explorador de archivos..."}), 200
+                elif any(w in comando_lower for w in ["abrir carpeta", "explorador"]):
+                    ruta_escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
+                    if hasattr(os, 'startfile'):
+                        os.startfile(ruta_escritorio)
+                    return jsonify({'respuesta': "Abriendo el explorador de archivos..."}), 200
+            except Exception as e_local:
+                print(f"[-] Excepción acción local: {e_local}")
 
         # 2. PROMPT PARA GEMINI IA
         if GEMINI_API_KEY:
