@@ -567,7 +567,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (COMANDO GENERAL Y GEMINI CORREGIDO)
+# ENDPOINT PRINCIPAL (COMANDO GENERAL Y GEMINI AUTOCORRECTIVO)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -622,7 +622,7 @@ def ejecutar_comando():
       except Exception as e_local:
         print(f'[-] Excepción acción local: {e_local}')
 
-    # 2. CONEXIÓN DIRECTA CON GEMINI IA
+    # 2. CONEXIÓN DIRECTA CON GEMINI IA (BÚSQUEDA DINÁMICA EN TIEMPO REAL)
     api_key = os.getenv('GEMINI_API_KEY')
     if not api_key:
       return (
@@ -637,11 +637,29 @@ def ejecutar_comando():
 
     genai.configure(api_key=api_key)
 
-    modelos = ['gemini-1.5-flash', 'gemini-2.0-flash']
+    # Consultar dinámicamente qué modelos de texto están disponibles hoy en la API de Google
+    modelos_disponibles = []
+    try:
+      for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+          modelos_disponibles.append(m.name)
+    except Exception as e_list:
+      print(f'[-] Error consultando modelos dinámicos: {e_list}')
+
+    # Lista de respaldo por si falla la consulta del listado
+    if not modelos_disponibles:
+      modelos_disponibles = [
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+          'models/gemini-1.5-flash',
+          'models/gemini-1.5-pro',
+      ]
+
     respuesta_texto = None
     ultimo_error = None
 
-    for mod_name in modelos:
+    # Probar dinámicamente con los modelos activos hasta que uno devuelva la respuesta
+    for mod_name in modelos_disponibles:
       try:
         model = genai.GenerativeModel(mod_name)
         response = model.generate_content(comando_texto)
@@ -675,7 +693,7 @@ def ejecutar_comando():
 
 
 # ---------------------------------------------------------
-# ARRANQUE DEL SERVIDOR FLASK
+# ARRANQUE DEL SERVIDOR FLASK CON PUERTO DINÁMICO
 # ---------------------------------------------------------
 if __name__ == '__main__':
   port = int(os.getenv('PORT', 5000))
