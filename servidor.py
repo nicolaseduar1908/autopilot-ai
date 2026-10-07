@@ -273,7 +273,7 @@ def generar_video_flutterflow():
         200,
     )
   except Exception as e:
-    return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+    return jsonify({'status': 'error', 'mensaje': str(e)}), 200
 
 
 @app.route('/test-heygen', methods=['GET', 'POST'])
@@ -317,7 +317,7 @@ def webhook_hotmart():
         200,
     )
   except Exception as e:
-    return jsonify({'status': 'error', 'mensaje': str(e)}), 400
+    return jsonify({'status': 'error', 'mensaje': str(e)}), 200
 
 
 @app.route('/memoria', methods=['GET'])
@@ -379,7 +379,7 @@ def generar_campana():
         200,
     )
   except Exception as e:
-    return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+    return jsonify({'status': 'error', 'mensaje': str(e)}), 200
 
 
 @app.route('/generar-video-canal', methods=['POST'])
@@ -405,7 +405,7 @@ def generar_video_canal():
         200,
     )
   except Exception as e:
-    return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+    return jsonify({'status': 'error', 'mensaje': str(e)}), 200
 
 
 @app.route('/generar_audio_elevenlabs', methods=['POST'])
@@ -417,7 +417,7 @@ def generar_audio_elevenlabs():
               'status': 'error',
               'mensaje': 'Cliente de ElevenLabs no configurado',
           }),
-          500,
+          200,
       )
 
     datos = request.get_json(silent=True) or {}
@@ -427,7 +427,7 @@ def generar_audio_elevenlabs():
     if not texto:
       return (
           jsonify({'status': 'error', 'mensaje': 'El texto es obligatorio'}),
-          400,
+          200,
       )
 
     try:
@@ -461,7 +461,7 @@ def generar_audio_elevenlabs():
         200,
     )
   except Exception as e:
-    return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+    return jsonify({'status': 'error', 'mensaje': str(e)}), 200
 
 
 @app.route('/canva/crear', methods=['POST'])
@@ -473,7 +473,7 @@ def generar_grafico_canva():
               'status': 'error',
               'mensaje': 'El módulo de Canva no se encuentra cargado',
           }),
-          500,
+          200,
       )
 
     datos = request.get_json(silent=True) or {}
@@ -492,7 +492,7 @@ def generar_grafico_canva():
         200,
     )
   except Exception as e:
-    return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+    return jsonify({'status': 'error', 'mensaje': str(e)}), 200
 
 
 @app.route('/crear_proyecto', methods=['POST'])
@@ -532,7 +532,7 @@ def crear_proyecto():
         200,
     )
   except Exception as e:
-    return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+    return jsonify({'status': 'error', 'mensaje': str(e)}), 200
 
 
 @app.route('/abrir_carpeta', methods=['POST'])
@@ -560,10 +560,10 @@ def abrir_carpeta():
           jsonify(
               {'status': 'error', 'mensaje': 'La ruta especificada no existe'}
           ),
-          404,
+          200,
       )
   except Exception as e:
-    return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+    return jsonify({'status': 'error', 'mensaje': str(e)}), 200
 
 
 # ---------------------------------------------------------
@@ -582,7 +582,6 @@ def ejecutar_comando():
         or datos.get('mensaje')
         or ''
     ).strip()
-    comando_lower = comando_texto.lower()
 
     if not comando_texto:
       return (
@@ -591,10 +590,11 @@ def ejecutar_comando():
                   'No recibí ningún comando. Escribe tu consulta de nuevo.'
               )
           }),
-          400,
+          200,
       )
 
     # 1. ACCIONES LOCALES (Solo si corre en Windows local)
+    comando_lower = comando_texto.lower()
     if os.name == 'nt':
       try:
         if any(w in comando_lower for w in ['bloc de notas', 'notepad']):
@@ -622,50 +622,59 @@ def ejecutar_comando():
       except Exception as e_local:
         print(f'[-] Excepción acción local: {e_local}')
 
-    # 2. CONEXIÓN DIRECTA CON GEMINI IA (BÚSQUEDA DINÁMICA EN TIEMPO REAL)
+    # 2. CONEXIÓN DIRECTA CON GEMINI IA
     api_key = os.getenv('GEMINI_API_KEY')
     if not api_key:
       return (
           jsonify({
               'respuesta': (
-                  'Falta configurar la variable GEMINI_API_KEY en las variables'
-                  ' de entorno.'
+                  'Error: Falta configurar la variable GEMINI_API_KEY en'
+                  ' las variables de entorno.'
               )
           }),
-          500,
+          200,
       )
 
     genai.configure(api_key=api_key)
 
-    # Consultar dinámicamente qué modelos de texto están disponibles hoy en la API de Google
-    modelos_disponibles = []
-    try:
-      for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-          modelos_disponibles.append(m.name)
-    except Exception as e_list:
-      print(f'[-] Error consultando modelos dinámicos: {e_list}')
+    # Instrucción de comportamiento para la IA
+    instruccion_sistema = (
+        'Eres un asistente virtual inteligente en español. Responde'
+        ' directamente de manera fluida, clara y concisa. No agregues'
+        ' explicaciones en inglés ni hagas análisis gramatical del usuario.'
+    )
 
-    # Lista de respaldo por si falla la consulta del listado
-    if not modelos_disponibles:
-      modelos_disponibles = [
-          'gemini-1.5-flash',
-          'gemini-1.5-pro',
-          'models/gemini-1.5-flash',
-          'models/gemini-1.5-pro',
-      ]
+    modelos_estables = [
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-2.0-flash',
+        'models/gemini-1.5-flash',
+        'models/gemini-1.5-pro',
+    ]
 
     respuesta_texto = None
     ultimo_error = None
+    prompt_completo = f'{instruccion_sistema}\n\nPregunta del usuario: {comando_texto}'
 
-    # Probar dinámicamente con los modelos activos hasta que uno devuelva la respuesta
-    for mod_name in modelos_disponibles:
+    for mod_name in modelos_estables:
       try:
         model = genai.GenerativeModel(mod_name)
-        response = model.generate_content(comando_texto)
-        if response and response.text:
-          respuesta_texto = response.text
-          break
+        response = model.generate_content(prompt_completo)
+
+        if response:
+          try:
+            if response.text:
+              respuesta_texto = response.text.strip()
+              break
+          except Exception:
+            if (
+                response.candidates
+                and response.candidates[0].content.parts
+            ):
+              respuesta_texto = (
+                  response.candidates[0].content.parts[0].text.strip()
+              )
+              break
       except Exception as e_mod:
         ultimo_error = str(e_mod)
         print(f'[-] Error con modelo {mod_name}: {e_mod}')
@@ -677,19 +686,16 @@ def ejecutar_comando():
       return (
           jsonify({
               'respuesta': (
-                  'Ocurrió un problema al comunicarse con Gemini IA. Detalle:'
-                  f' {ultimo_error}'
+                  'No se pudo conectar con Gemini IA en este momento.'
+                  f' Detalle: {ultimo_error}'
               )
           }),
-          500,
+          200,
       )
 
   except Exception as e:
     print(f'❌ Error en /api/comando: {e}')
-    return (
-        jsonify({'respuesta': f'Error interno en el servidor: {str(e)}'}),
-        500,
-    )
+    return jsonify({'respuesta': f'Error interno en el servidor: {str(e)}'}), 200
 
 
 # ---------------------------------------------------------
