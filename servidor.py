@@ -151,7 +151,14 @@ except ImportError:
 # =========================================================
 app = Flask(__name__, static_folder='static', static_url_path='')
 app.secret_key = os.getenv('FLASK_SECRET_KEY', os.urandom(24))
-CORS(app, resources={r'/*': {'origins': '*'}})
+
+# Habilitar CORS dinámico para conexiones cruzadas (FlutterFlow, Web, Mobile)
+CORS(
+    app,
+    resources={r'/*': {'origins': '*'}},
+    allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+    methods=['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
+)
 
 # REGISTRO DE BLUEPRINTS
 if hotmart_bp:
@@ -242,7 +249,7 @@ def generar_video_flutterflow():
         200,
     )
   try:
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     prompt = (
         datos.get('prompt', '')
         or datos.get('comando', '')
@@ -282,7 +289,7 @@ def test_heygen():
 @app.route('/webhook_hotmart', methods=['POST'])
 def webhook_hotmart():
   try:
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     comprador = datos.get('buyer', {}).get('name', 'Cliente Desconocido')
     email = datos.get('buyer', {}).get('email', 'sin_email@dominio.com')
     producto_nombre = datos.get('product', {}).get('name', 'Producto Digital')
@@ -339,7 +346,7 @@ def obtener_memoria():
 @app.route('/generar_campana', methods=['POST'])
 def generar_campana():
   try:
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     nicho = datos.get('nicho', 'Educación Canina')
     tema_o_producto = datos.get('tema', 'Ladridos Nocturnos')
 
@@ -378,7 +385,7 @@ def generar_campana():
 @app.route('/generar-video-canal', methods=['POST'])
 def generar_video_canal():
   try:
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     data_canal = datos.get('canal', 'YouTube')
     preferencia = datos.get('preferencia', 'animado')
     guion = datos.get('guion', 'Guion predeterminado')
@@ -413,7 +420,7 @@ def generar_audio_elevenlabs():
           500,
       )
 
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     texto = datos.get('texto', '')
     nombre_archivo = datos.get('nombre_archivo', 'narracion_generada.mp3')
 
@@ -469,7 +476,7 @@ def generar_grafico_canva():
           500,
       )
 
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     titulo = datos.get('titulo', 'Campaña automatizada')
     nicho = datos.get('nicho', 'Marketing')
 
@@ -491,7 +498,7 @@ def generar_grafico_canva():
 @app.route('/crear_proyecto', methods=['POST'])
 def crear_proyecto():
   try:
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     nombre_proyecto = datos.get('nombre', 'nuevo_proyecto')
 
     ruta_base = os.path.join(
@@ -531,16 +538,16 @@ def crear_proyecto():
 @app.route('/abrir_carpeta', methods=['POST'])
 def abrir_carpeta():
   try:
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     ruta = datos.get('ruta', '')
     if not ruta:
       ruta = os.path.expanduser('~')
 
     if os.path.exists(ruta):
       try:
-        if hasattr(os, 'startfile'):
+        if os.name == 'nt' and hasattr(os, 'startfile'):
           os.startfile(ruta)
-        else:
+        elif os.name == 'posix':
           subprocess.Popen(['xdg-open', ruta])
       except Exception as e_open:
         print(f'[-] Nota apertura carpeta: {e_open}')
@@ -568,7 +575,7 @@ def ejecutar_comando():
     return jsonify({'status': 'ok'}), 200
 
   try:
-    datos = request.get_json() or {}
+    datos = request.get_json(silent=True) or {}
     comando_texto = (
         datos.get('comando')
         or datos.get('texto')
@@ -587,7 +594,7 @@ def ejecutar_comando():
           400,
       )
 
-    # 1. ACCIONES LOCALES (Solo si corre en tu PC)
+    # 1. ACCIONES LOCALES (Solo si corre en Windows local)
     if os.name == 'nt':
       try:
         if any(w in comando_lower for w in ['bloc de notas', 'notepad']):
@@ -621,8 +628,8 @@ def ejecutar_comando():
       return (
           jsonify({
               'respuesta': (
-                  'Falta configurar la variable GEMINI_API_KEY en Render. Ve a'
-                  ' Environment y agrégala.'
+                  'Falta configurar la variable GEMINI_API_KEY en las variables'
+                  ' de entorno.'
               )
           }),
           500,
@@ -632,6 +639,7 @@ def ejecutar_comando():
 
     modelos = ['gemini-1.5-flash', 'gemini-2.0-flash']
     respuesta_texto = None
+    ultimo_error = None
 
     for mod_name in modelos:
       try:
@@ -641,6 +649,7 @@ def ejecutar_comando():
           respuesta_texto = response.text
           break
       except Exception as e_mod:
+        ultimo_error = str(e_mod)
         print(f'[-] Error con modelo {mod_name}: {e_mod}')
         continue
 
@@ -648,9 +657,12 @@ def ejecutar_comando():
       return jsonify({'respuesta': respuesta_texto}), 200
     else:
       return (
-          jsonify(
-              {'respuesta': 'Ocurrió un problema al comunicarse con Gemini IA.'}
-          ),
+          jsonify({
+              'respuesta': (
+                  'Ocurrió un problema al comunicarse con Gemini IA. Detalle:'
+                  f' {ultimo_error}'
+              )
+          }),
           500,
       )
 
@@ -666,6 +678,7 @@ def ejecutar_comando():
 # ARRANQUE DEL SERVIDOR FLASK
 # ---------------------------------------------------------
 if __name__ == '__main__':
+  port = int(os.getenv('PORT', 5000))
   print('🚀 Servidor Controlador IA iniciado...')
-  print('📍 Escuchando en http://0.0.0.0:5000')
-  app.run(host='0.0.0.0', port=5000, debug=True)
+  print(f'📍 Escuchando en http://0.0.0.0:{port}')
+  app.run(host='0.0.0.0', port=port, debug=False)
