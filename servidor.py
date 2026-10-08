@@ -181,7 +181,7 @@ else:
 # ---------------------------------------------------------
 # CONFIGURACIÓN DE GEMINI IA OFICIAL
 # ---------------------------------------------------------
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
 if GEMINI_API_KEY:
   try:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -567,7 +567,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (COMANDO GENERAL Y GEMINI AUTOCORRECTIVO)
+# ENDPOINT PRINCIPAL (COMANDO GENERAL Y GEMINI INFALIBLE)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -580,15 +580,19 @@ def ejecutar_comando():
         datos.get('comando')
         or datos.get('texto')
         or datos.get('mensaje')
+        or datos.get('query')
+        or datos.get('prompt')
         or ''
     ).strip()
 
     if not comando_texto:
+      txt_vacio = 'No recibí ningún comando. Escribe tu consulta de nuevo.'
       return (
           jsonify({
-              'respuesta': (
-                  'No recibí ningún comando. Escribe tu consulta de nuevo.'
-              )
+              'respuesta': txt_vacio,
+              'response': txt_vacio,
+              'mensaje': txt_vacio,
+              'status': 'error',
           }),
           200,
       )
@@ -599,103 +603,197 @@ def ejecutar_comando():
       try:
         if any(w in comando_lower for w in ['bloc de notas', 'notepad']):
           subprocess.Popen(['notepad.exe'])
-          return jsonify({'respuesta': 'Abriendo el Bloc de Notas...'}), 200
+          resp = 'Abriendo el Bloc de Notas...'
+          return (
+              jsonify({
+                  'respuesta': resp,
+                  'response': resp,
+                  'mensaje': resp,
+                  'status': 'success',
+              }),
+              200,
+          )
 
         elif any(w in comando_lower for w in ['calculadora', 'calc']):
           subprocess.Popen(['calc.exe'])
-          return jsonify({'respuesta': 'Abriendo la calculadora...'}), 200
+          resp = 'Abriendo la calculadora...'
+          return (
+              jsonify({
+                  'respuesta': resp,
+                  'response': resp,
+                  'mensaje': resp,
+                  'status': 'success',
+              }),
+              200,
+          )
 
         elif any(
             w in comando_lower for w in ['chrome', 'navegador', 'internet']
         ):
           subprocess.Popen(['cmd', '/c', 'start', 'chrome'])
-          return jsonify({'respuesta': 'Abriendo Google Chrome...'}), 200
+          resp = 'Abriendo Google Chrome...'
+          return (
+              jsonify({
+                  'respuesta': resp,
+                  'response': resp,
+                  'mensaje': resp,
+                  'status': 'success',
+              }),
+              200,
+          )
 
         elif any(w in comando_lower for w in ['abrir carpeta', 'explorador']):
           ruta_escritorio = os.path.join(os.path.expanduser('~'), 'Desktop')
           if hasattr(os, 'startfile'):
             os.startfile(ruta_escritorio)
+          resp = 'Abriendo el explorador de archivos...'
           return (
-              jsonify({'respuesta': 'Abriendo el explorador de archivos...'}),
+              jsonify({
+                  'respuesta': resp,
+                  'response': resp,
+                  'mensaje': resp,
+                  'status': 'success',
+              }),
               200,
           )
       except Exception as e_local:
         print(f'[-] Excepción acción local: {e_local}')
 
     # 2. CONEXIÓN DIRECTA CON GEMINI IA
-    api_key = os.getenv('GEMINI_API_KEY')
+    api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
     if not api_key:
+      err_key = (
+          'Error: Falta configurar la variable GEMINI_API_KEY en las variables'
+          ' de entorno.'
+      )
       return (
           jsonify({
-              'respuesta': (
-                  'Error: Falta configurar la variable GEMINI_API_KEY en'
-                  ' las variables de entorno.'
-              )
+              'respuesta': err_key,
+              'response': err_key,
+              'mensaje': err_key,
+              'status': 'error',
           }),
           200,
       )
 
     genai.configure(api_key=api_key)
 
-    # Instrucción de comportamiento para la IA
     instruccion_sistema = (
         'Eres un asistente virtual inteligente en español. Responde'
-        ' directamente de manera fluida, clara y concisa. No agregues'
-        ' explicaciones en inglés ni hagas análisis gramatical del usuario.'
+        ' directamente de manera fluida, clara y concisa en español.'
     )
-
-    modelos_estables = [
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-2.0-flash',
-        'models/gemini-1.5-flash',
-        'models/gemini-1.5-pro',
-    ]
+    prompt_completo = (
+        f'{instruccion_sistema}\n\nPregunta del usuario: {comando_texto}'
+    )
 
     respuesta_texto = None
     ultimo_error = None
-    prompt_completo = f'{instruccion_sistema}\n\nPregunta del usuario: {comando_texto}'
 
-    for mod_name in modelos_estables:
+    # Estrategia A: Obtener lista dinámica de modelos activa hoy en Google
+    modelos_a_probar = []
+    try:
+      for m in genai.list_models():
+        if (
+            hasattr(m, 'supported_generation_methods')
+            and 'generateContent' in m.supported_generation_methods
+        ):
+          modelos_a_probar.append(m.name)
+    except Exception as e_list:
+      print(f'[-] No se pudo obtener lista dinámica: {e_list}')
+
+    # Estrategia B: Candidatos universales
+    if not modelos_a_probar:
+      modelos_a_probar = [
+          'gemini-2.0-flash',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+          'models/gemini-2.0-flash',
+          'models/gemini-1.5-flash',
+          'models/gemini-1.5-pro',
+      ]
+
+    # Intentar con la librería oficial de Google
+    for mod_name in modelos_a_probar:
       try:
         model = genai.GenerativeModel(mod_name)
         response = model.generate_content(prompt_completo)
 
-        if response:
-          try:
-            if response.text:
-              respuesta_texto = response.text.strip()
-              break
-          except Exception:
-            if (
-                response.candidates
-                and response.candidates[0].content.parts
-            ):
-              respuesta_texto = (
-                  response.candidates[0].content.parts[0].text.strip()
-              )
-              break
+        if hasattr(response, 'text') and response.text:
+          respuesta_texto = response.text.strip()
+          break
+        elif hasattr(response, 'candidates') and response.candidates:
+          parts = response.candidates[0].content.parts
+          txt_parts = [p.text for p in parts if hasattr(p, 'text')]
+          if txt_parts:
+            respuesta_texto = ''.join(txt_parts).strip()
+            break
       except Exception as e_mod:
         ultimo_error = str(e_mod)
-        print(f'[-] Error con modelo {mod_name}: {e_mod}')
-        continue
+        print(f'[-] Falló modelo {mod_name}: {e_mod}')
 
+    # Estrategia C: Petición HTTP REST directa si el SDK falla
+    if not respuesta_texto:
+      for alt_model in [
+          'gemini-2.0-flash',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+      ]:
+        try:
+          url = f'https://generativelanguage.googleapis.com/v1beta/models/{alt_model}:generateContent?key={api_key}'
+          headers = {'Content-Type': 'application/json'}
+          payload = {'contents': [{'parts': [{'text': prompt_completo}]}]}
+          res = requests.post(url, json=payload, headers=headers, timeout=12)
+          if res.status_code == 200:
+            res_data = res.json()
+            candidates = res_data.get('candidates', [])
+            if candidates:
+              parts = candidates[0].get('content', {}).get('parts', [])
+              text_list = [p.get('text', '') for p in parts if p.get('text')]
+              if text_list:
+                respuesta_texto = ''.join(text_list).strip()
+                break
+          else:
+            ultimo_error = f'HTTP {res.status_code}: {res.text}'
+        except Exception as e_rest:
+          ultimo_error = str(e_rest)
+
+    # Devolver la respuesta siempre con código 200 para que FlutterFlow la muestre
     if respuesta_texto:
-      return jsonify({'respuesta': respuesta_texto}), 200
-    else:
       return (
           jsonify({
-              'respuesta': (
-                  'No se pudo conectar con Gemini IA en este momento.'
-                  f' Detalle: {ultimo_error}'
-              )
+              'respuesta': respuesta_texto,
+              'response': respuesta_texto,
+              'mensaje': respuesta_texto,
+              'status': 'success',
           }),
           200,
       )
 
+    err_final = (
+        f'No se pudo conectar con Gemini IA en este momento. Detalle:'
+        f' {ultimo_error}'
+    )
+    return (
+        jsonify({
+            'respuesta': err_final,
+            'response': err_final,
+            'mensaje': err_final,
+            'status': 'error',
+        }),
+        200,
+    )
+
   except Exception as e:
-    print(f'❌ Error en /api/comando: {e}')
-    return jsonify({'respuesta': f'Error interno en el servidor: {str(e)}'}), 200
+    err_exc = f'Error interno en el servidor: {str(e)}'
+    return (
+        jsonify({
+            'respuesta': err_exc,
+            'response': err_exc,
+            'mensaje': err_exc,
+            'status': 'error',
+        }),
+        200,
+    )
 
 
 # ---------------------------------------------------------
