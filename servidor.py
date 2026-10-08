@@ -678,12 +678,11 @@ def ejecutar_comando():
 
     genai.configure(api_key=api_key)
 
-    instruccion_sistema = (
-        'Eres un asistente virtual inteligente en español. Responde'
-        ' directamente de manera fluida, clara y concisa en español.'
-    )
-    prompt_completo = (
-        f'{instruccion_sistema}\n\nPregunta del usuario: {comando_texto}'
+    # Instrucción de sistema nativa enviada por separado para evitar que Gemini haga eco
+    sys_prompt = (
+        'Eres un asistente virtual inteligente llamado Autopilot IA. Responde'
+        ' directamente, de forma útil, clara y en español a la pregunta del'
+        ' usuario.'
     )
 
     respuesta_texto = None
@@ -712,21 +711,25 @@ def ejecutar_comando():
           'models/gemini-1.5-pro',
       ]
 
-    # Intentar con la librería oficial de Google
+    # Intentar con la librería oficial de Google usando system_instruction
     for mod_name in modelos_a_probar:
       try:
-        model = genai.GenerativeModel(mod_name)
-        response = model.generate_content(prompt_completo)
+        model = genai.GenerativeModel(
+            model_name=mod_name, system_instruction=sys_prompt
+        )
+        response = model.generate_content(comando_texto)
 
         if hasattr(response, 'text') and response.text:
           respuesta_texto = response.text.strip()
-          break
+          if respuesta_texto:
+            break
         elif hasattr(response, 'candidates') and response.candidates:
           parts = response.candidates[0].content.parts
           txt_parts = [p.text for p in parts if hasattr(p, 'text')]
           if txt_parts:
             respuesta_texto = ''.join(txt_parts).strip()
-            break
+            if respuesta_texto:
+              break
       except Exception as e_mod:
         ultimo_error = str(e_mod)
         print(f'[-] Falló modelo {mod_name}: {e_mod}')
@@ -741,7 +744,10 @@ def ejecutar_comando():
         try:
           url = f'https://generativelanguage.googleapis.com/v1beta/models/{alt_model}:generateContent?key={api_key}'
           headers = {'Content-Type': 'application/json'}
-          payload = {'contents': [{'parts': [{'text': prompt_completo}]}]}
+          payload = {
+              'system_instruction': {'parts': [{'text': sys_prompt}]},
+              'contents': [{'parts': [{'text': comando_texto}]}],
+          }
           res = requests.post(url, json=payload, headers=headers, timeout=12)
           if res.status_code == 200:
             res_data = res.json()
@@ -751,7 +757,8 @@ def ejecutar_comando():
               text_list = [p.get('text', '') for p in parts if p.get('text')]
               if text_list:
                 respuesta_texto = ''.join(text_list).strip()
-                break
+                if respuesta_texto:
+                  break
           else:
             ultimo_error = f'HTTP {res.status_code}: {res.text}'
         except Exception as e_rest:
