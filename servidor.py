@@ -575,7 +575,19 @@ def ejecutar_comando():
     return jsonify({'status': 'ok'}), 200
 
   try:
-    datos = request.get_json(silent=True) or {}
+    # LECTURA BLINDADA Y TOLERANTE DE JSON PARA FLUTTERFLOW
+    datos = (
+        request.get_json(force=True, silent=True)
+        or request.form.to_dict()
+        or request.args.to_dict()
+        or {}
+    )
+    if not datos and request.data:
+      try:
+        datos = json.loads(request.data.decode('utf-8'))
+      except Exception:
+        datos = {}
+
     comando_texto = (
         datos.get('comando')
         or datos.get('texto')
@@ -678,7 +690,6 @@ def ejecutar_comando():
 
     genai.configure(api_key=api_key)
 
-    # Instrucción de sistema nativa enviada por separado para evitar que Gemini haga eco
     sys_prompt = (
         'Eres un asistente virtual inteligente llamado Autopilot IA. Responde'
         ' directamente, de forma útil, clara y en español a la pregunta del'
@@ -688,30 +699,28 @@ def ejecutar_comando():
     respuesta_texto = None
     ultimo_error = None
 
-    # Estrategia A: Obtener lista dinámica de modelos activa hoy en Google
-    modelos_a_probar = []
+    modelos_a_probar = [
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'models/gemini-2.0-flash',
+        'models/gemini-1.5-flash',
+        'models/gemini-1.5-pro',
+    ]
+
     try:
+      dinamicos = []
       for m in genai.list_models():
         if (
             hasattr(m, 'supported_generation_methods')
             and 'generateContent' in m.supported_generation_methods
         ):
-          modelos_a_probar.append(m.name)
+          dinamicos.append(m.name)
+      if dinamicos:
+        modelos_a_probar = dinamicos + modelos_a_probar
     except Exception as e_list:
-      print(f'[-] No se pudo obtener lista dinámica: {e_list}')
+      print(f'[-] No se pudo listar modelos: {e_list}')
 
-    # Estrategia B: Candidatos universales
-    if not modelos_a_probar:
-      modelos_a_probar = [
-          'gemini-2.0-flash',
-          'gemini-1.5-flash',
-          'gemini-1.5-pro',
-          'models/gemini-2.0-flash',
-          'models/gemini-1.5-flash',
-          'models/gemini-1.5-pro',
-      ]
-
-    # Intentar con la librería oficial de Google usando system_instruction
     for mod_name in modelos_a_probar:
       try:
         model = genai.GenerativeModel(
@@ -734,7 +743,6 @@ def ejecutar_comando():
         ultimo_error = str(e_mod)
         print(f'[-] Falló modelo {mod_name}: {e_mod}')
 
-    # Estrategia C: Petición HTTP REST directa si el SDK falla
     if not respuesta_texto:
       for alt_model in [
           'gemini-2.0-flash',
@@ -764,7 +772,6 @@ def ejecutar_comando():
         except Exception as e_rest:
           ultimo_error = str(e_rest)
 
-    # Devolver la respuesta siempre con código 200 para que FlutterFlow la muestre
     if respuesta_texto:
       return (
           jsonify({
