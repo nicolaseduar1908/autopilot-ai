@@ -566,7 +566,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (RESPUESTA DIRECTA Y LIMPIA DE GEMINI)
+# ENDPOINT PRINCIPAL (MOTOR RESILIENTE MULTI-ENDPOINT Y MULTI-MODELO)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -574,7 +574,7 @@ def ejecutar_comando():
         return jsonify({'status': 'ok'}), 200
 
     try:
-        # LECTURA BLINDADA PARA FLUTTERFLOW
+        # LECTURA TOLERANTE DE DATOS DESDE FLUTTERFLOW
         datos = (
             request.get_json(force=True, silent=True)
             or request.form.to_dict()
@@ -631,7 +631,7 @@ def ejecutar_comando():
 
         api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
         if not api_key:
-            err_key = 'Error: Falta configurar GEMINI_API_KEY en las variables de entorno.'
+            err_key = 'Error: Falta configurar GEMINI_API_KEY en las variables de entorno de Render.'
             return jsonify({
                 'respuesta': err_key,
                 'response': err_key,
@@ -640,48 +640,69 @@ def ejecutar_comando():
                 'status': 'error'
             }), 200
 
-        genai.configure(api_key=api_key)
-
+        api_key = api_key.strip()
         respuesta_texto = None
         ultimo_error = None
 
-        # MODELOS OFICIALES ACTIVOS EN GOOGLE AI STUDIO
-        modelos_validos = ['gemini-2.0-flash', 'gemini-1.5-flash']
-
-        # 1. Intentar con el SDK enviando la pregunta directa y limpia
-        for mod in modelos_validos:
-            try:
-                model = genai.GenerativeModel(mod)
-                response = model.generate_content(comando_texto)
-                if hasattr(response, 'text') and response.text:
-                    respuesta_texto = response.text.strip()
-                    if respuesta_texto:
-                        break
-            except Exception as e:
-                ultimo_error = str(e)
-
-        # 2. Fallback REST directo si falla el SDK
-        if not respuesta_texto:
-            for alt_mod in modelos_validos:
+        # 1. INTENTO CON SDK OFICIAL DE GOOGLE
+        try:
+            genai.configure(api_key=api_key)
+            modelos_sdk = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest']
+            for mod in modelos_sdk:
                 try:
-                    url = f'https://generativelanguage.googleapis.com/v1beta/models/{alt_mod}:generateContent?key={api_key}'
-                    payload = {'contents': [{'parts': [{'text': comando_texto}]}]}
-                    res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=12)
+                    model = genai.GenerativeModel(mod)
+                    response = model.generate_content(comando_texto)
+                    if hasattr(response, 'text') and response.text:
+                        respuesta_texto = response.text.strip()
+                        if respuesta_texto:
+                            print(f"✅ [GEMINI SDK] Éxito con modelo: {mod}")
+                            break
+                except Exception as e_mod:
+                    ultimo_error = f"SDK {mod}: {str(e_mod)}"
+                    print(f"[-] Falló SDK {mod}: {e_mod}")
+        except Exception as e_sdk:
+            ultimo_error = f"SDK Config: {str(e_sdk)}"
+            print(f"[-] Error general SDK: {e_sdk}")
+
+        # 2. FALLBACK REST MULTI-ENDPOINT (SI EL SDK FALLA)
+        if not respuesta_texto:
+            headers = {'Content-Type': 'application/json'}
+            payload = {'contents': [{'parts': [{'text': comando_texto}]}]}
+
+            rest_targets = [
+                ('v1', 'gemini-1.5-flash'),
+                ('v1', 'gemini-2.0-flash'),
+                ('v1beta', 'gemini-2.0-flash'),
+                ('v1beta', 'gemini-1.5-flash'),
+                ('v1', 'gemini-2.5-flash'),
+                ('v1beta', 'gemini-2.5-flash'),
+                ('v1beta', 'gemini-flash-latest')
+            ]
+
+            for api_ver, model_name in rest_targets:
+                try:
+                    url = f'https://generativelanguage.googleapis.com/{api_ver}/models/{model_name}:generateContent?key={api_key}'
+                    res = requests.post(url, json=payload, headers=headers, timeout=12)
                     if res.status_code == 200:
-                        cands = res.json().get('candidates', [])
+                        res_data = res.json()
+                        cands = res_data.get('candidates', [])
                         if cands:
                             parts = cands[0].get('content', {}).get('parts', [])
                             txts = [p.get('text', '') for p in parts if p.get('text')]
                             if txts:
                                 respuesta_texto = ''.join(txts).strip()
-                                break
+                                if respuesta_texto:
+                                    print(f"✅ [GEMINI REST] Éxito con {api_ver} / {model_name}")
+                                    break
                     else:
-                        ultimo_error = f"HTTP {res.status_code}: {res.text}"
+                        ultimo_error = f"REST {api_ver}/{model_name} HTTP {res.status_code}: {res.text}"
+                        print(f"[-] Falló REST {api_ver}/{model_name}: {res.status_code}")
                 except Exception as e_rest:
-                    ultimo_error = str(e_rest)
+                    ultimo_error = f"REST {api_ver}/{model_name}: {str(e_rest)}"
+                    print(f"[-] Error excepción REST {api_ver}/{model_name}: {e_rest}")
 
         if not respuesta_texto:
-            respuesta_texto = f'Error al conectar con Gemini: {ultimo_error}'
+            respuesta_texto = f'No se pudo conectar con ningún modelo de Gemini. Detalle: {ultimo_error}'
 
         return jsonify({
             'respuesta': respuesta_texto,
