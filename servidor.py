@@ -1,3 +1,4 @@
+
 import json
 import os
 import subprocess
@@ -566,7 +567,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (MODELOS OFICIALES ACTIVOS SIN 404)
+# ENDPOINT PRINCIPAL (DETECCIÓN DINÁMICA DE MODELOS ACTIVOS)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -647,11 +648,22 @@ def ejecutar_comando():
         respuesta_texto = None
         ultimo_error = None
 
-        # MODELOS OFICIALES ACTIVOS DE GOOGLE (SIN GEMINI-1.5-PRO QUE DA 404)
-        modelos_validos = ['gemini-2.0-flash', 'gemini-1.5-flash']
+        # DETECCIÓN DINÁMICA DE MODELOS PERMITIDOS EN TU CLAVE DE GEMINI
+        modelos_disponibles = []
+        try:
+            for m in genai.list_models():
+                if hasattr(m, 'supported_generation_methods') and 'generateContent' in m.supported_generation_methods:
+                    mod_clean = m.name.replace('models/', '')
+                    modelos_disponibles.append(mod_clean)
+        except Exception as e_list:
+            print(f"[-] Error al listar modelos dinámicamente: {e_list}")
 
-        # 1. Intentar con el SDK oficial
-        for mod in modelos_validos:
+        # Respaldos universales por si la lista falla
+        if not modelos_disponibles:
+            modelos_disponibles = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+
+        # 1. Intentar generación con el SDK de Google
+        for mod in modelos_disponibles:
             try:
                 model = genai.GenerativeModel(mod)
                 response = model.generate_content(prompt_directo)
@@ -662,12 +674,11 @@ def ejecutar_comando():
             except Exception as e:
                 ultimo_error = str(e)
 
-        # 2. Fallback REST directo si falla el SDK
+        # 2. Fallback REST directo si el SDK falla
         if not respuesta_texto:
-            for alt_mod in modelos_validos:
+            for alt_mod in modelos_disponibles:
                 try:
-                    mod_clean = alt_mod.replace('models/', '')
-                    url = f'https://generativelanguage.googleapis.com/v1beta/models/{mod_clean}:generateContent?key={api_key}'
+                    url = f'https://generativelanguage.googleapis.com/v1beta/models/{alt_mod}:generateContent?key={api_key}'
                     payload = {'contents': [{'parts': [{'text': prompt_directo}]}]}
                     res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=12)
                     if res.status_code == 200:
