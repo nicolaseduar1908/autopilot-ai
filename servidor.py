@@ -566,7 +566,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (RESPUESTA DIRECTA Y LIMPIA DE GEMINI)
+# ENDPOINT PRINCIPAL (MODELOS OFICIALES ACTIVOS SIN 404)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -574,7 +574,7 @@ def ejecutar_comando():
         return jsonify({'status': 'ok'}), 200
 
     try:
-        # LECTURA BLINDADA Y TOLERANTE PARA FLUTTERFLOW
+        # LECTURA BLINDADA PARA FLUTTERFLOW
         datos = (
             request.get_json(force=True, silent=True)
             or request.form.to_dict()
@@ -608,7 +608,7 @@ def ejecutar_comando():
                 'status': 'error'
             }), 200
 
-        # ACCIONES LOCALES (Solo si corre en Windows)
+        # ACCIONES LOCALES (Windows)
         comando_lower = comando_texto.lower()
         if os.name == 'nt':
             try:
@@ -642,15 +642,16 @@ def ejecutar_comando():
 
         genai.configure(api_key=api_key)
 
-        # Prompt directo para forzar una respuesta fluida sin etiquetas ni metadatos
-        prompt_directo = f"Responde directamente en español a la siguiente consulta, de forma clara y concisa, sin etiquetas, sin metadatos y sin repeticiones: {comando_texto}"
+        prompt_directo = f"Responde directamente en español a la siguiente consulta, de forma clara, directa y concisa: {comando_texto}"
 
         respuesta_texto = None
         ultimo_error = None
 
-        modelos = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro']
+        # MODELOS OFICIALES ACTIVOS DE GOOGLE (SIN GEMINI-1.5-PRO QUE DA 404)
+        modelos_validos = ['gemini-2.0-flash', 'gemini-1.5-flash']
 
-        for mod in modelos:
+        # 1. Intentar con el SDK oficial
+        for mod in modelos_validos:
             try:
                 model = genai.GenerativeModel(mod)
                 response = model.generate_content(prompt_directo)
@@ -661,10 +662,12 @@ def ejecutar_comando():
             except Exception as e:
                 ultimo_error = str(e)
 
+        # 2. Fallback REST directo si falla el SDK
         if not respuesta_texto:
-            for alt_mod in modelos:
+            for alt_mod in modelos_validos:
                 try:
-                    url = f'https://generativelanguage.googleapis.com/v1beta/models/{alt_mod}:generateContent?key={api_key}'
+                    mod_clean = alt_mod.replace('models/', '')
+                    url = f'https://generativelanguage.googleapis.com/v1beta/models/{mod_clean}:generateContent?key={api_key}'
                     payload = {'contents': [{'parts': [{'text': prompt_directo}]}]}
                     res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=12)
                     if res.status_code == 200:
@@ -675,6 +678,8 @@ def ejecutar_comando():
                             if txts:
                                 respuesta_texto = ''.join(txts).strip()
                                 break
+                    else:
+                        ultimo_error = f"HTTP {res.status_code}: {res.text}"
                 except Exception as e_rest:
                     ultimo_error = str(e_rest)
 
