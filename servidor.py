@@ -566,7 +566,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (COMANDO GENERAL Y GEMINI INFALIBLE)
+# ENDPOINT PRINCIPAL (RESPUESTA DIRECTA Y LIMPIA DE GEMINI)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -574,7 +574,7 @@ def ejecutar_comando():
         return jsonify({'status': 'ok'}), 200
 
     try:
-        # LECTURA BLINDADA DE DATOS DE FLUTTERFLOW
+        # LECTURA BLINDADA Y TOLERANTE PARA FLUTTERFLOW
         datos = (
             request.get_json(force=True, silent=True)
             or request.form.to_dict()
@@ -598,243 +598,108 @@ def ejecutar_comando():
 
         if not comando_texto:
             txt_vacio = 'No recibí ningún comando. Escribe tu consulta de nuevo.'
-            return (
-                jsonify({
-                    'respuesta': txt_vacio,
-                    'response': txt_vacio,
-                    'mensaje': txt_vacio,
-                    'text': txt_vacio,
-                    'content': txt_vacio,
-                    'output': txt_vacio,
-                    'status': 'error',
-                }),
-                200,
-            )
+            return jsonify({
+                'respuesta': txt_vacio,
+                'response': txt_vacio,
+                'mensaje': txt_vacio,
+                'text': txt_vacio,
+                'content': txt_vacio,
+                'output': txt_vacio,
+                'status': 'error'
+            }), 200
 
-        # 1. ACCIONES LOCALES (Solo en entorno local Windows)
+        # ACCIONES LOCALES (Solo si corre en Windows)
         comando_lower = comando_texto.lower()
         if os.name == 'nt':
             try:
                 if any(w in comando_lower for w in ['bloc de notas', 'notepad']):
                     subprocess.Popen(['notepad.exe'])
                     resp = 'Abriendo el Bloc de Notas...'
-                    return (
-                        jsonify({
-                            'respuesta': resp,
-                            'response': resp,
-                            'mensaje': resp,
-                            'text': resp,
-                            'content': resp,
-                            'output': resp,
-                            'status': 'success',
-                        }),
-                        200,
-                    )
+                    return jsonify({'respuesta': resp, 'response': resp, 'mensaje': resp, 'text': resp, 'status': 'success'}), 200
 
                 elif any(w in comando_lower for w in ['calculadora', 'calc']):
                     subprocess.Popen(['calc.exe'])
                     resp = 'Abriendo la calculadora...'
-                    return (
-                        jsonify({
-                            'respuesta': resp,
-                            'response': resp,
-                            'mensaje': resp,
-                            'text': resp,
-                            'content': resp,
-                            'output': resp,
-                            'status': 'success',
-                        }),
-                        200,
-                    )
+                    return jsonify({'respuesta': resp, 'response': resp, 'mensaje': resp, 'text': resp, 'status': 'success'}), 200
 
-                elif any(
-                    w in comando_lower for w in ['chrome', 'navegador', 'internet']
-                ):
+                elif any(w in comando_lower for w in ['chrome', 'navegador', 'internet']):
                     subprocess.Popen(['cmd', '/c', 'start', 'chrome'])
                     resp = 'Abriendo Google Chrome...'
-                    return (
-                        jsonify({
-                            'respuesta': resp,
-                            'response': resp,
-                            'mensaje': resp,
-                            'text': resp,
-                            'content': resp,
-                            'output': resp,
-                            'status': 'success',
-                        }),
-                        200,
-                    )
-
-                elif any(w in comando_lower for w in ['abrir carpeta', 'explorador']):
-                    ruta_escritorio = os.path.join(os.path.expanduser('~'), 'Desktop')
-                    if hasattr(os, 'startfile'):
-                        os.startfile(ruta_escritorio)
-                    resp = 'Abriendo el explorador de archivos...'
-                    return (
-                        jsonify({
-                            'respuesta': resp,
-                            'response': resp,
-                            'mensaje': resp,
-                            'text': resp,
-                            'content': resp,
-                            'output': resp,
-                            'status': 'success',
-                        }),
-                        200,
-                    )
+                    return jsonify({'respuesta': resp, 'response': resp, 'mensaje': resp, 'text': resp, 'status': 'success'}), 200
             except Exception as e_local:
                 print(f'[-] Excepción acción local: {e_local}')
 
-        # 2. CONEXIÓN DIRECTA CON GEMINI IA
         api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
         if not api_key:
-            err_key = (
-                'Error: Falta configurar la variable GEMINI_API_KEY en las variables'
-                ' de entorno.'
-            )
-            return (
-                jsonify({
-                    'respuesta': err_key,
-                    'response': err_key,
-                    'mensaje': err_key,
-                    'text': err_key,
-                    'content': err_key,
-                    'output': err_key,
-                    'status': 'error',
-                }),
-                200,
-            )
+            err_key = 'Error: Falta configurar GEMINI_API_KEY en las variables de entorno.'
+            return jsonify({
+                'respuesta': err_key,
+                'response': err_key,
+                'mensaje': err_key,
+                'text': err_key,
+                'status': 'error'
+            }), 200
 
         genai.configure(api_key=api_key)
 
-        sys_prompt = (
-            'Eres un asistente virtual inteligente llamado AutoViral. Tu ÚNICA tarea'
-            ' es responder directamente la pregunta del usuario en español de forma clara,'
-            ' fluida y concisa. JAMÁS hagas análisis gramatical, no muestres "Question:",'
-            ' no muestres "Language:", ni traduzcas al inglés.'
-        )
+        # Prompt directo para forzar una respuesta fluida sin etiquetas ni metadatos
+        prompt_directo = f"Responde directamente en español a la siguiente consulta, de forma clara y concisa, sin etiquetas, sin metadatos y sin repeticiones: {comando_texto}"
 
         respuesta_texto = None
         ultimo_error = None
 
-        modelos_a_probar = [
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
-            'gemini-2.0-flash',
-            'models/gemini-1.5-flash',
-            'models/gemini-1.5-pro',
-            'models/gemini-2.0-flash',
-        ]
+        modelos = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro']
 
-        try:
-            dinamicos = []
-            for m in genai.list_models():
-                if (
-                    hasattr(m, 'supported_generation_methods')
-                    and 'generateContent' in m.supported_generation_methods
-                ):
-                    dinamicos.append(m.name)
-            if dinamicos:
-                modelos_a_probar = dinamicos + modelos_a_probar
-        except Exception as e_list:
-            print(f'[-] No se pudo listar modelos: {e_list}')
-
-        for mod_name in modelos_a_probar:
+        for mod in modelos:
             try:
-                model = genai.GenerativeModel(
-                    model_name=mod_name, system_instruction=sys_prompt
-                )
-                response = model.generate_content(comando_texto)
-
+                model = genai.GenerativeModel(mod)
+                response = model.generate_content(prompt_directo)
                 if hasattr(response, 'text') and response.text:
                     respuesta_texto = response.text.strip()
                     if respuesta_texto:
                         break
-                elif hasattr(response, 'candidates') and response.candidates:
-                    parts = response.candidates[0].content.parts
-                    txt_parts = [p.text for p in parts if hasattr(p, 'text')]
-                    if txt_parts:
-                        respuesta_texto = ''.join(txt_parts).strip()
-                        if respuesta_texto:
-                            break
-            except Exception as e_mod:
-                ultimo_error = str(e_mod)
-                print(f'[-] Falló modelo {mod_name}: {e_mod}')
+            except Exception as e:
+                ultimo_error = str(e)
 
         if not respuesta_texto:
-            for alt_model in [
-                'gemini-1.5-flash',
-                'gemini-1.5-pro',
-                'gemini-2.0-flash',
-            ]:
+            for alt_mod in modelos:
                 try:
-                    url = f'https://generativelanguage.googleapis.com/v1beta/models/{alt_model}:generateContent?key={api_key}'
-                    headers = {'Content-Type': 'application/json'}
-                    payload = {
-                        'system_instruction': {'parts': [{'text': sys_prompt}]},
-                        'contents': [{'parts': [{'text': comando_texto}]}],
-                    }
-                    res = requests.post(url, json=payload, headers=headers, timeout=12)
+                    url = f'https://generativelanguage.googleapis.com/v1beta/models/{alt_mod}:generateContent?key={api_key}'
+                    payload = {'contents': [{'parts': [{'text': prompt_directo}]}]}
+                    res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=12)
                     if res.status_code == 200:
-                        res_data = res.json()
-                        candidates = res_data.get('candidates', [])
-                        if candidates:
-                            parts = candidates[0].get('content', {}).get('parts', [])
-                            text_list = [p.get('text', '') for p in parts if p.get('text')]
-                            if text_list:
-                                respuesta_texto = ''.join(text_list).strip()
-                                if respuesta_texto:
-                                    break
-                    else:
-                        ultimo_error = f'HTTP {res.status_code}: {res.text}'
+                        cands = res.json().get('candidates', [])
+                        if cands:
+                            parts = cands[0].get('content', {}).get('parts', [])
+                            txts = [p.get('text', '') for p in parts if p.get('text')]
+                            if txts:
+                                respuesta_texto = ''.join(txts).strip()
+                                break
                 except Exception as e_rest:
                     ultimo_error = str(e_rest)
 
-        if respuesta_texto:
-            return (
-                jsonify({
-                    'respuesta': respuesta_texto,
-                    'response': respuesta_texto,
-                    'mensaje': respuesta_texto,
-                    'text': respuesta_texto,
-                    'content': respuesta_texto,
-                    'output': respuesta_texto,
-                    'status': 'success',
-                }),
-                200,
-            )
+        if not respuesta_texto:
+            respuesta_texto = f'Error al conectar con Gemini: {ultimo_error}'
 
-        err_final = (
-            f'No se pudo conectar con Gemini IA en este momento. Detalle:'
-            f' {ultimo_error}'
-        )
-        return (
-            jsonify({
-                'respuesta': err_final,
-                'response': err_final,
-                'mensaje': err_final,
-                'text': err_final,
-                'content': err_final,
-                'output': err_final,
-                'status': 'error',
-            }),
-            200,
-        )
+        return jsonify({
+            'respuesta': respuesta_texto,
+            'response': respuesta_texto,
+            'mensaje': respuesta_texto,
+            'text': respuesta_texto,
+            'content': respuesta_texto,
+            'output': respuesta_texto,
+            'status': 'success'
+        }), 200
 
     except Exception as e:
         err_exc = f'Error interno en el servidor: {str(e)}'
-        return (
-            jsonify({
-                'respuesta': err_exc,
-                'response': err_exc,
-                'mensaje': err_exc,
-                'text': err_exc,
-                'content': err_exc,
-                'output': err_exc,
-                'status': 'error',
-            }),
-            200,
-        )
+        return jsonify({
+            'respuesta': err_exc,
+            'response': err_exc,
+            'mensaje': err_exc,
+            'text': err_exc,
+            'status': 'error'
+        }), 200
 
 
 # ---------------------------------------------------------
