@@ -1,4 +1,3 @@
-
 import json
 import os
 import subprocess
@@ -567,7 +566,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (DETECCIÓN DINÁMICA DE MODELOS ACTIVOS)
+# ENDPOINT PRINCIPAL (RESPUESTA DIRECTA Y LIMPIA DE GEMINI)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -643,30 +642,17 @@ def ejecutar_comando():
 
         genai.configure(api_key=api_key)
 
-        prompt_directo = f"Responde directamente en español a la siguiente consulta, de forma clara, directa y concisa: {comando_texto}"
-
         respuesta_texto = None
         ultimo_error = None
 
-        # DETECCIÓN DINÁMICA DE MODELOS PERMITIDOS EN TU CLAVE DE GEMINI
-        modelos_disponibles = []
-        try:
-            for m in genai.list_models():
-                if hasattr(m, 'supported_generation_methods') and 'generateContent' in m.supported_generation_methods:
-                    mod_clean = m.name.replace('models/', '')
-                    modelos_disponibles.append(mod_clean)
-        except Exception as e_list:
-            print(f"[-] Error al listar modelos dinámicamente: {e_list}")
+        # MODELOS OFICIALES ACTIVOS EN GOOGLE AI STUDIO
+        modelos_validos = ['gemini-2.0-flash', 'gemini-1.5-flash']
 
-        # Respaldos universales por si la lista falla
-        if not modelos_disponibles:
-            modelos_disponibles = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
-
-        # 1. Intentar generación con el SDK de Google
-        for mod in modelos_disponibles:
+        # 1. Intentar con el SDK enviando la pregunta directa y limpia
+        for mod in modelos_validos:
             try:
                 model = genai.GenerativeModel(mod)
-                response = model.generate_content(prompt_directo)
+                response = model.generate_content(comando_texto)
                 if hasattr(response, 'text') and response.text:
                     respuesta_texto = response.text.strip()
                     if respuesta_texto:
@@ -674,12 +660,12 @@ def ejecutar_comando():
             except Exception as e:
                 ultimo_error = str(e)
 
-        # 2. Fallback REST directo si el SDK falla
+        # 2. Fallback REST directo si falla el SDK
         if not respuesta_texto:
-            for alt_mod in modelos_disponibles:
+            for alt_mod in modelos_validos:
                 try:
                     url = f'https://generativelanguage.googleapis.com/v1beta/models/{alt_mod}:generateContent?key={api_key}'
-                    payload = {'contents': [{'parts': [{'text': prompt_directo}]}]}
+                    payload = {'contents': [{'parts': [{'text': comando_texto}]}]}
                     res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=12)
                     if res.status_code == 200:
                         cands = res.json().get('candidates', [])
