@@ -183,7 +183,7 @@ else:
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
 if GEMINI_API_KEY:
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
+        genai.configure(api_key=GEMINI_API_KEY.strip())
         print('✅ [GEMINI] API Key configurada correctamente.')
     except Exception as e:
         print(f'⚠️ [GEMINI] Error al configurar API Key: {e}')
@@ -566,7 +566,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (MOTOR RESILIENTE MULTI-ENDPOINT Y MULTI-MODELO)
+# ENDPOINT PRINCIPAL (MOTOR RESILIENTE Y ULTRARRÁPIDO SIN TIMEOUTS)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -644,10 +644,10 @@ def ejecutar_comando():
         respuesta_texto = None
         ultimo_error = None
 
-        # 1. INTENTO CON SDK OFICIAL DE GOOGLE
+        # 1. INTENTO CON MODELOS OFICIALES ULTRARRÁPIDOS VÍA SDK
+        modelos_sdk = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b']
         try:
             genai.configure(api_key=api_key)
-            modelos_sdk = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest']
             for mod in modelos_sdk:
                 try:
                     model = genai.GenerativeModel(mod)
@@ -655,7 +655,7 @@ def ejecutar_comando():
                     if hasattr(response, 'text') and response.text:
                         respuesta_texto = response.text.strip()
                         if respuesta_texto:
-                            print(f"✅ [GEMINI SDK] Éxito con modelo: {mod}")
+                            print(f"✅ [GEMINI SDK] Éxito ultrarrápido con modelo: {mod}")
                             break
                 except Exception as e_mod:
                     ultimo_error = f"SDK {mod}: {str(e_mod)}"
@@ -664,25 +664,22 @@ def ejecutar_comando():
             ultimo_error = f"SDK Config: {str(e_sdk)}"
             print(f"[-] Error general SDK: {e_sdk}")
 
-        # 2. FALLBACK REST MULTI-ENDPOINT (SI EL SDK FALLA)
+        # 2. FALLBACK REST CON TIMEOUT ESTRICTO DE 6 SEG (PARA NO CONGELAR FLUTTERFLOW)
         if not respuesta_texto:
             headers = {'Content-Type': 'application/json'}
             payload = {'contents': [{'parts': [{'text': comando_texto}]}]}
 
             rest_targets = [
-                ('v1', 'gemini-1.5-flash'),
-                ('v1', 'gemini-2.0-flash'),
                 ('v1beta', 'gemini-2.0-flash'),
                 ('v1beta', 'gemini-1.5-flash'),
-                ('v1', 'gemini-2.5-flash'),
-                ('v1beta', 'gemini-2.5-flash'),
-                ('v1beta', 'gemini-flash-latest')
+                ('v1', 'gemini-1.5-flash'),
+                ('v1beta', 'gemini-1.5-flash-8b')
             ]
 
             for api_ver, model_name in rest_targets:
                 try:
                     url = f'https://generativelanguage.googleapis.com/{api_ver}/models/{model_name}:generateContent?key={api_key}'
-                    res = requests.post(url, json=payload, headers=headers, timeout=12)
+                    res = requests.post(url, json=payload, headers=headers, timeout=6)
                     if res.status_code == 200:
                         res_data = res.json()
                         cands = res_data.get('candidates', [])
@@ -695,15 +692,14 @@ def ejecutar_comando():
                                     print(f"✅ [GEMINI REST] Éxito con {api_ver} / {model_name}")
                                     break
                     else:
-                        ultimo_error = f"REST {api_ver}/{model_name} HTTP {res.status_code}: {res.text}"
-                        print(f"[-] Falló REST {api_ver}/{model_name}: {res.status_code}")
+                        ultimo_error = f"REST {api_ver}/{model_name} HTTP {res.status_code}"
                 except Exception as e_rest:
                     ultimo_error = f"REST {api_ver}/{model_name}: {str(e_rest)}"
-                    print(f"[-] Error excepción REST {api_ver}/{model_name}: {e_rest}")
 
         if not respuesta_texto:
-            respuesta_texto = f'No se pudo conectar con ningún modelo de Gemini. Detalle: {ultimo_error}'
+            respuesta_texto = "No se pudo obtener respuesta de la IA. Inténtalo de nuevo."
 
+        # RETORNO GARANTIZADO DE TODAS LAS LLAVES POSIBLES
         return jsonify({
             'respuesta': respuesta_texto,
             'response': respuesta_texto,
