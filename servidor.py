@@ -566,7 +566,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (MOTOR RESILIENTE Y ULTRARRÁPIDO SIN TIMEOUTS)
+# ENDPOINT PRINCIPAL (AUTO-DETECCIÓN DINÁMICA Y MULTI-MODELO)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -574,7 +574,6 @@ def ejecutar_comando():
         return jsonify({'status': 'ok'}), 200
 
     try:
-        # LECTURA TOLERANTE DE DATOS DESDE FLUTTERFLOW
         datos = (
             request.get_json(force=True, silent=True)
             or request.form.to_dict()
@@ -644,42 +643,67 @@ def ejecutar_comando():
         respuesta_texto = None
         ultimo_error = None
 
-        # 1. INTENTO CON MODELOS OFICIALES ULTRARRÁPIDOS VÍA SDK
-        modelos_sdk = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b']
+        # 1. AUTO-DETECCIÓN DINÁMICA DE MODELOS ACTIVOS EN TU API KEY
         try:
             genai.configure(api_key=api_key)
-            for mod in modelos_sdk:
+            
+            modelos_detectados = []
+            try:
+                for m in genai.list_models():
+                    if hasattr(m, 'supported_generation_methods') and 'generateContent' in m.supported_generation_methods:
+                        modelos_detectados.append(m.name)
+            except Exception as e_list:
+                print(f"[-] No se pudo listar modelos: {e_list}")
+
+            # Priorizar los modelos ultra rápidos ('flash')
+            flash_models = [m for m in modelos_detectados if 'flash' in m.lower()]
+            otros_models = [m for m in modelos_detectados if m not in flash_models]
+            modelos_a_probar = flash_models + otros_models
+
+            # Lista de respaldo con sintaxis con y sin prefijo 'models/'
+            if not modelos_a_probar:
+                modelos_a_probar = [
+                    'models/gemini-1.5-flash',
+                    'gemini-1.5-flash',
+                    'models/gemini-2.0-flash-exp',
+                    'gemini-2.0-flash-exp',
+                    'models/gemini-1.5-pro',
+                    'gemini-1.5-pro'
+                ]
+
+            for mod in modelos_a_probar:
                 try:
                     model = genai.GenerativeModel(mod)
                     response = model.generate_content(comando_texto)
                     if hasattr(response, 'text') and response.text:
                         respuesta_texto = response.text.strip()
                         if respuesta_texto:
-                            print(f"✅ [GEMINI SDK] Éxito ultrarrápido con modelo: {mod}")
+                            print(f"✅ [GEMINI SDK] Éxito con modelo activo: {mod}")
                             break
                 except Exception as e_mod:
                     ultimo_error = f"SDK {mod}: {str(e_mod)}"
                     print(f"[-] Falló SDK {mod}: {e_mod}")
+
         except Exception as e_sdk:
             ultimo_error = f"SDK Config: {str(e_sdk)}"
             print(f"[-] Error general SDK: {e_sdk}")
 
-        # 2. FALLBACK REST CON TIMEOUT ESTRICTO DE 6 SEG (PARA NO CONGELAR FLUTTERFLOW)
+        # 2. FALLBACK REST MULTI-ENDPOINT POR HTTP
         if not respuesta_texto:
             headers = {'Content-Type': 'application/json'}
             payload = {'contents': [{'parts': [{'text': comando_texto}]}]}
 
             rest_targets = [
-                ('v1beta', 'gemini-2.0-flash'),
                 ('v1beta', 'gemini-1.5-flash'),
                 ('v1', 'gemini-1.5-flash'),
-                ('v1beta', 'gemini-1.5-flash-8b')
+                ('v1beta', 'gemini-2.0-flash-exp'),
+                ('v1beta', 'gemini-1.5-pro')
             ]
 
             for api_ver, model_name in rest_targets:
                 try:
                     url = f'https://generativelanguage.googleapis.com/{api_ver}/models/{model_name}:generateContent?key={api_key}'
-                    res = requests.post(url, json=payload, headers=headers, timeout=6)
+                    res = requests.post(url, json=payload, headers=headers, timeout=8)
                     if res.status_code == 200:
                         res_data = res.json()
                         cands = res_data.get('candidates', [])
@@ -697,9 +721,9 @@ def ejecutar_comando():
                     ultimo_error = f"REST {api_ver}/{model_name}: {str(e_rest)}"
 
         if not respuesta_texto:
-            respuesta_texto = "No se pudo obtener respuesta de la IA. Inténtalo de nuevo."
+            respuesta_texto = f"No se pudo obtener respuesta de la IA. Detalle: {ultimo_error}"
 
-        # RETORNO GARANTIZADO DE TODAS LAS LLAVES POSIBLES
+        # DEVOLVER RESULTADO CON TODAS LAS CLAVES JSON POSIBLES
         return jsonify({
             'respuesta': respuesta_texto,
             'response': respuesta_texto,
