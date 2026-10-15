@@ -5,7 +5,6 @@ from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-import google.generativeai as genai
 import requests
 from supabase import Client, create_client
 
@@ -178,19 +177,6 @@ else:
     print('⚠️ [MÓDULO REDES] No se cargó modulo_redes.py (Opcional).')
 
 # ---------------------------------------------------------
-# CONFIGURACIÓN DE GEMINI IA OFICIAL
-# ---------------------------------------------------------
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-if GEMINI_API_KEY:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY.strip())
-        print('✅ [GEMINI] API Key configurada correctamente.')
-    except Exception as e:
-        print(f'⚠️ [GEMINI] Error al configurar API Key: {e}')
-else:
-    print('⚠️ [GEMINI] GEMINI_API_KEY no detectada en las variables de entorno.')
-
-# ---------------------------------------------------------
 # CONFIGURACIÓN DE ELEVENLABS IA
 # ---------------------------------------------------------
 ELEVENLABS_API_KEY = os.getenv('ELEVENLABS_API_KEY')
@@ -217,11 +203,6 @@ if SUPABASE_URL and SUPABASE_KEY:
         print('✅ [SUPABASE] Conexión establecida.')
     except Exception as e:
         print(f'⚠️ [SUPABASE] Error de conexión: {e}')
-else:
-    print(
-        '⚠️ [SUPABASE] SUPABASE_URL o SUPABASE_KEY no detectadas en variables de'
-        ' entorno.'
-    )
 
 
 # ---------------------------------------------------------
@@ -566,7 +547,7 @@ def abrir_carpeta():
 
 
 # ---------------------------------------------------------
-# ENDPOINT PRINCIPAL (OPTIMIZADO Y A PRUEBA DE FALLOS)
+# ENDPOINT PRINCIPAL (OPENAI GPT-4o-mini - 100% ESTABLE)
 # ---------------------------------------------------------
 @app.route('/api/comando', methods=['POST', 'OPTIONS'])
 def ejecutar_comando():
@@ -628,9 +609,10 @@ def ejecutar_comando():
             except Exception as e_local:
                 print(f'[-] Excepción acción local: {e_local}')
 
-        api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-        if not api_key:
-            err_key = 'Error: Falta configurar GEMINI_API_KEY en las variables de entorno de Render.'
+        # CONSULTA DIRECTA A OPENAI (GPT-4o-mini)
+        openai_key = os.getenv('OPENAI_API_KEY')
+        if not openai_key:
+            err_key = 'Error: Falta configurar OPENAI_API_KEY en las variables de entorno de Render.'
             return jsonify({
                 'respuesta': err_key,
                 'response': err_key,
@@ -639,71 +621,34 @@ def ejecutar_comando():
                 'status': 'error'
             }), 200
 
-        api_key = api_key.strip()
-        respuesta_texto = None
-        ultimo_error = None
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {openai_key.strip()}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": "Eres un asistente de IA útil, directo y amigable."},
+                {"role": "user", "content": comando_texto}
+            ],
+            "temperature": 0.7
+        }
 
-        # MODELOS ESTABLES DIRECTOS (Sin list_models para evitar fugas de memoria y timeouts)
-        modelos_a_probar = [
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
-            'gemini-2.0-flash-exp'
-        ]
+        resp_openai = requests.post(url, json=payload, headers=headers, timeout=15)
 
-        try:
-            genai.configure(api_key=api_key)
-            for mod in modelos_a_probar:
-                try:
-                    model = genai.GenerativeModel(mod)
-                    response = model.generate_content(comando_texto)
-                    if hasattr(response, 'text') and response.text:
-                        respuesta_texto = response.text.strip()
-                        if respuesta_texto:
-                            print(f"✅ [GEMINI SDK] Éxito con modelo: {mod}")
-                            break
-                except Exception as e_mod:
-                    ultimo_error = f"SDK {mod}: {str(e_mod)}"
-                    print(f"[-] Falló SDK {mod}: {e_mod}")
+        if resp_openai.status_code == 200:
+            res_data = resp_openai.json()
+            respuesta_texto = res_data['choices'][0]['message']['content'].strip()
+            print("✅ [OPENAI] Respuesta obtenida con éxito usando gpt-4o-mini")
+        else:
+            try:
+                err_detail = resp_openai.json().get('error', {}).get('message', resp_openai.text)
+            except Exception:
+                err_detail = resp_openai.text
+            respuesta_texto = f"Error de OpenAI ({resp_openai.status_code}): {err_detail}"
 
-        except Exception as e_sdk:
-            ultimo_error = f"SDK Config: {str(e_sdk)}"
-            print(f"[-] Error general SDK: {e_sdk}")
-
-        # FALLBACK VIA REST SI EL SDK NO RESPONDE
-        if not respuesta_texto:
-            headers = {'Content-Type': 'application/json'}
-            payload = {'contents': [{'parts': [{'text': comando_texto}]}]}
-
-            rest_targets = [
-                ('v1beta', 'gemini-1.5-flash'),
-                ('v1', 'gemini-1.5-flash'),
-                ('v1beta', 'gemini-1.5-pro')
-            ]
-
-            for api_ver, model_name in rest_targets:
-                try:
-                    url = f'https://generativelanguage.googleapis.com/{api_ver}/models/{model_name}:generateContent?key={api_key}'
-                    res = requests.post(url, json=payload, headers=headers, timeout=10)
-                    if res.status_code == 200:
-                        res_data = res.json()
-                        cands = res_data.get('candidates', [])
-                        if cands:
-                            parts = cands[0].get('content', {}).get('parts', [])
-                            txts = [p.get('text', '') for p in parts if p.get('text')]
-                            if txts:
-                                respuesta_texto = ''.join(txts).strip()
-                                if respuesta_texto:
-                                    print(f"✅ [GEMINI REST] Éxito con {api_ver} / {model_name}")
-                                    break
-                    else:
-                        ultimo_error = f"REST {api_ver}/{model_name} HTTP {res.status_code}"
-                except Exception as e_rest:
-                    ultimo_error = f"REST {api_ver}/{model_name}: {str(e_rest)}"
-
-        if not respuesta_texto:
-            respuesta_texto = f"No se pudo obtener respuesta de la IA. Detalle: {ultimo_error}"
-
-        # DEVOLVER RESULTADO EN TODAS LAS CLAVES REQUERIDAS
+        # DEVOLVER RESULTADO EN TODAS LAS CLAVES REQUERIDAS POR MAKE Y FLUTTERFLOW
         return jsonify({
             'respuesta': respuesta_texto,
             'response': respuesta_texto,
